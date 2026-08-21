@@ -11,3 +11,9 @@ export const reservations = sqliteTable('reservations', {
   googleSubject: text('google_subject').notNull(), guestName: text('guest_name').notNull(), guestEmail: text('guest_email').notNull(),
   partySize: integer('party_size').notNull().default(1), status: text('status').notNull().default('confirmed'), createdAt: text('created_at').notNull(),
 }, (table) => [uniqueIndex('idx_reservations_slot_guest').on(table.slotId, table.googleSubject)]);
+
+export const admins = sqliteTable('admins', {
+  email: text('email').primaryKey(),
+  addedAt: text('added_at').notNull(),
+  addedBy: text('added_by').notNull(),
+});

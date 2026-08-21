@@ -1,19 +1,12 @@
 import { database, ensureSchema } from '@/app/lib/database';
-import { env } from 'cloudflare:workers';
-import { isChef, verifyGoogleToken } from '@/app/lib/google';
-async function chefFrom(request:Request) {
-  const platformEmail=request.headers.get('oai-authenticated-user-email');
-  if(platformEmail&&env.CHEF_EMAIL&&platformEmail.toLowerCase()===env.CHEF_EMAIL.toLowerCase())return {email:platformEmail};
-  const token=request.headers.get('authorization')?.replace(/^Bearer\s+/i,''); if(!token)return null;
-  const user=await verifyGoogleToken(token); return isChef(user)?user:null;
-}
+import { authenticateAdmin } from '@/app/lib/admin';
 export async function GET(request:Request){
-  try{return Response.json({isChef:Boolean(await chefFrom(request))});}
+  try{return Response.json({isChef:Boolean(await authenticateAdmin(request))});}
   catch{return Response.json({isChef:false});}
 }
 export async function POST(request:Request) {
   try {
-    if (!await chefFrom(request)) return Response.json({ error:'Chef access only' }, { status:403 });
+    if (!await authenticateAdmin(request)) return Response.json({ error:'גישת מנהל בלבד' }, { status:403 });
     const b=await request.json() as {date?:string;startTime?:string;endTime?:string;capacity?:number;timezoneOffset?:number};
     if(!b.date||!/^\d{2}:\d{2}$/.test(b.startTime||'')||!/^\d{2}:\d{2}$/.test(b.endTime||'')||!Number.isInteger(b.capacity)||b.capacity!<1||b.capacity!>100||!Number.isInteger(b.timezoneOffset))return Response.json({error:'בדקו את התאריך, השעות ומספר המקומות'},{status:400});
     const toUtc=(time:string)=>{const [y,m,d]=b.date!.split('-').map(Number),[h,min]=time.split(':').map(Number);return new Date(Date.UTC(y,m-1,d,h,min)+b.timezoneOffset!*60_000);};

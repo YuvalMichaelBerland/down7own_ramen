@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import { DM_Sans, Instrument_Serif } from 'next/font/google';
+import { Frank_Ruhl_Libre, Noto_Sans_Hebrew } from 'next/font/google';
 import './globals.css';
 
-const sans = DM_Sans({ variable: '--font-sans', subsets: ['latin'] });
-const serif = Instrument_Serif({ variable: '--font-serif', subsets: ['latin'], weight: '400' });
+const sans = Noto_Sans_Hebrew({ variable: '--font-sans', subsets: ['hebrew'], weight: ['400','600','700'] });
+const serif = Frank_Ruhl_Libre({ variable: '--font-serif', subsets: ['hebrew'], weight: ['400','600'] });
 
 export const metadata: Metadata = {
   title: 'דאון טאון ראמן — הזמנת מקום',
