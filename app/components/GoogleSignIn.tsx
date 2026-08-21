@@ -12,5 +12,5 @@ export function GoogleSignIn({ onCredential }: { onCredential:(credential:string
       if(window.google){render();return;} const script=document.createElement('script'); script.src='https://accounts.google.com/gsi/client'; script.async=true; script.onload=render; document.head.appendChild(script);
     }); return()=>{cancelled=true};
   },[onCredential]);
-  return configured?<div className="google-button" ref={button}/>:<p className="auth-note">Google sign-in will activate after deployment setup.</p>;
+  return configured?<div className="google-button" ref={button}/>:<p className="auth-note">ההתחברות עם Google תופעל לאחר הגדרת האתר.</p>;
 }

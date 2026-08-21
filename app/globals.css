@@ -12,17 +12,17 @@ main { min-height:100vh; overflow:hidden; }
 .brand-mark { display:grid; place-items:center; width:36px; height:36px; color:var(--paper); background:var(--red); border-radius:50%; font-family:serif; font-size:19px; }
 .chef-link { color:inherit; border-bottom:1px solid var(--ink); padding:5px 0; text-decoration:none; font-size:12px; font-weight:800; letter-spacing:.08em; }
 .hero { max-width:1180px; margin:auto; padding:70px 28px 58px; position:relative; }
-.hero::after { content:'拉麺'; position:absolute; right:20px; top:24px; writing-mode:vertical-rl; font-family:var(--font-serif),serif; font-size:80px; color:#ded8cc; letter-spacing:.12em; z-index:-1; }
+.hero::after { content:'拉麺'; position:absolute; left:20px; top:24px; writing-mode:vertical-rl; font-family:var(--font-serif),serif; font-size:80px; color:#ded8cc; letter-spacing:.12em; z-index:-1; }
 .eyebrow,.kicker { font-size:11px; letter-spacing:.18em; font-weight:800; }
 .eyebrow { display:flex; align-items:center; gap:10px; color:var(--red); }
 .eyebrow span { width:27px; height:2px; background:var(--red); }
 h1 { font-family:var(--font-serif),serif; font-weight:400; font-size:clamp(64px,10vw,126px); line-height:.78; letter-spacing:-.04em; margin:28px 0 32px; }
 .lede { max-width:440px; font-size:17px; line-height:1.65; color:#5d5a52; margin:0; }
 .booking-shell { max-width:1180px; margin:0 auto 70px; display:grid; grid-template-columns:.85fr 1.15fr; background:#fffdf8; border:1px solid var(--ink); box-shadow:8px 8px 0 var(--ink); }
-.date-card { padding:44px; border-right:1px solid var(--ink); background:var(--red); color:#fff8ed; }
+.date-card { padding:44px; border-left:1px solid var(--ink); background:var(--red); color:#fff8ed; }
 .kicker { margin:0 0 28px; opacity:.72; }
 .date-row { display:flex; align-items:center; gap:27px; }
-.date-row>div:first-child { display:flex; flex-direction:column; align-items:center; padding-right:27px; border-right:1px solid rgba(255,255,255,.4); }
+.date-row>div:first-child { display:flex; flex-direction:column; align-items:center; padding-left:27px; border-left:1px solid rgba(255,255,255,.4); }
 .date-row strong { font-family:var(--font-serif),serif; font-size:76px; font-weight:400; line-height:.8; }
 .date-row span { font-size:12px; letter-spacing:.16em; margin-top:12px; }
 .date-copy h2 { font-family:var(--font-serif),serif; font-weight:400; font-size:36px; margin:0 0 7px; }
@@ -58,7 +58,7 @@ h1 { font-family:var(--font-serif),serif; font-weight:400; font-size:clamp(64px,
 .confirmation h2,.admin-card h2 { font-family:var(--font-serif),serif; font-size:42px; font-weight:400; margin:0 0 14px; }
 .confirmation p { line-height:1.6; }
 .confirmation-id { font-size:10px; letter-spacing:.12em; color:#777267; }
-.stamp { position:absolute; right:22px; top:18px; color:var(--red); border:2px solid var(--red); border-radius:50%; width:62px; height:62px; display:grid; place-items:center; transform:rotate(8deg); font-family:var(--font-serif),serif; font-size:22px; }
+.stamp { position:absolute; left:22px; top:18px; color:var(--red); border:2px solid var(--red); border-radius:50%; width:62px; height:62px; display:grid; place-items:center; transform:rotate(-8deg); font-family:var(--font-serif),serif; font-size:22px; }
 .admin-wrap { max-width:1040px; margin:0 auto; padding:76px 28px; display:grid; grid-template-columns:1fr 1fr; gap:70px; align-items:start; }
 .admin-heading h1 { margin:26px 0 30px; font-size:clamp(70px,9vw,110px); }
 .admin-heading>p:last-child { color:#777267; max-width:390px; line-height:1.7; }
@@ -74,14 +74,14 @@ footer { max-width:1180px; margin:auto; border-top:1px solid var(--line); paddin
   .nav { height:72px; padding:0 18px; }
   .brand { font-size:10px; }
   .hero { padding:55px 20px 42px; }
-  .hero::after { font-size:52px; right:2px; opacity:.7; }
+  .hero::after { font-size:52px; left:2px; opacity:.7; }
   h1 { font-size:clamp(62px,22vw,88px); }
   .lede { font-size:15px; max-width:330px; }
   .booking-shell { margin:0 14px 48px; grid-template-columns:1fr; box-shadow:5px 5px 0 var(--ink); }
   .date-card,.slot-panel { padding:28px 22px; }
-  .date-card { border-right:0; border-bottom:1px solid var(--ink); }
+  .date-card { border-left:0; border-bottom:1px solid var(--ink); }
   .date-row { gap:18px; }
-  .date-row>div:first-child { padding-right:18px; }
+  .date-row>div:first-child { padding-left:18px; }
   .date-row strong { font-size:61px; }
   .date-copy h2 { font-size:30px; }
   .details { margin-top:30px; }

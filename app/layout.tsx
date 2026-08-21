@@ -6,8 +6,8 @@ const sans = DM_Sans({ variable: '--font-sans', subsets: ['latin'] });
 const serif = Instrument_Serif({ variable: '--font-serif', subsets: ['latin'], weight: '400' });
 
 export const metadata: Metadata = {
-  title: 'Down Town Ramen — Reserve your seat',
-  description: 'Book a seat for a small-batch private ramen lunch.',
+  title: 'דאון טאון ראמן — הזמנת מקום',
+  description: 'הזמינו מקום לארוחת ראמן פרטית במהדורה קטנה.',
   openGraph: {
     title: 'Down Town Ramen — Reserve your seat',
     description: 'Small-batch ramen. Choose a time and reserve your seat.',
@@ -22,5 +22,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body className={`${sans.variable} ${serif.variable}`}>{children}</body></html>;
+  return <html lang="he" dir="rtl"><body className={`${sans.variable} ${serif.variable}`}>{children}</body></html>;
 }
