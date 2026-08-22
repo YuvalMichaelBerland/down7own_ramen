@@ -100,6 +100,9 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .chat-input button { flex:0 0 auto; min-height:36px; padding:0 16px; border:1px solid var(--ink); background:var(--ink); color:var(--paper); cursor:pointer; font-size:12px; font-weight:700; white-space:nowrap; }
 .chat-input button:disabled { border-color:var(--line); background:var(--paper); color:var(--muted); cursor:not-allowed; }
 .badge-dot { display:inline-block; width:8px; height:8px; margin-inline-start:6px; border-radius:50%; background:var(--red); vertical-align:middle; }
+.chat-toast { position:fixed; bottom:22px; inset-inline:22px; z-index:25; max-width:340px; margin-inline:auto; display:flex; align-items:center; gap:10px; border:1px solid var(--ink); background:var(--ink); color:var(--paper); padding:14px 18px; cursor:pointer; font-size:13px; font-weight:600; box-shadow:0 20px 40px -16px rgba(34,31,26,.5); animation:toast-in .2s ease; }
+.chat-toast .badge-dot { margin-inline-start:0; flex:0 0 auto; }
+@keyframes toast-in { from { transform:translateY(12px); opacity:0; } to { transform:translateY(0); opacity:1; } }
 
 /* admin */
 .admin-page .nav { max-width:1040px; }

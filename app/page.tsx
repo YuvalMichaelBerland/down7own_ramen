@@ -62,6 +62,7 @@ export default function Home(){
         {error&&<p className="error" role="alert">{error}</p>}
       </div>
     </section>
+    {unread&&!chatVisible&&<button type="button" className="chat-toast" onClick={()=>{setChatVisible(true);setUnread(false);}}><span className="badge-dot"/>יש לכם הודעה חדשה מהשף — לחצו לצפייה</button>}
     {confirmation&&<div className="modal-backdrop" role="presentation"><section className="confirmation" role="dialog" aria-modal="true" aria-labelledby="confirmed-title"><div className="stamp">予約</div><p className="kicker">אתם ברשימה</p><h2 id="confirmed-title">המקום נשמר.</h2><p>{confirmation.guestName}, שמרנו {confirmation.partySize} מקומות לשעה <strong>{fmtTime(confirmation.startsAt)}</strong>, {fmtDate(confirmation.startsAt)}.</p><p className="confirmation-id">הזמנה {confirmation.id.slice(0,8).toUpperCase()}</p><button className="reserve" onClick={()=>setConfirmation(undefined)}>סיום <span>✓</span></button></section></div>}
   </main>;
 }
