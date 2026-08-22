@@ -45,7 +45,7 @@ export default function Admin(){
   return <main className="admin-page">
     <nav className="nav"><Link className="brand" href="/"><img src="/ramen-logo.png" alt="Down7own Ramen"/><span>DOWN7OWN RAMEN</span></Link><Link className="chef-link" href="/">לתצוגת אורחים</Link></nav>
     <section className="admin-wrap">
-      <div className="admin-heading"><h1>פתיחת זמני הזמנה</h1><p>צרו סדרת שעות במהירות, ואז התאימו כל משבצת בנפרד — שעה, משך ישיבה ומספר אורחים.</p></div>
+      <div className="admin-heading"><p className="eyebrow"><span/>ניהול מסעדה</p><h1>פתיחת זמני הזמנה</h1><p>צרו סדרת שעות במהירות, ואז התאימו כל משבצת בנפרד — שעה, משך ישיבה ומספר אורחים.</p></div>
       <div className="admin-column">
         <div className="admin-card slot-builder">
           {platformAdmin===null?<p className="empty-copy">בודק הרשאת מנהל…</p>:!authorized?<><p className="kicker">כניסת מנהלים</p><h2>התחברות עם Google</h2><p className="empty-copy">מנהלים מורשים יכולים להתחבר עם חשבון Gmail ולפתוח מועדים.</p><GoogleSignIn onCredential={setCredential}/></>:<form onSubmit={create}>
