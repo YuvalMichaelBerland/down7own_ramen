@@ -57,7 +57,16 @@ export async function PATCH(request:Request){
 export async function DELETE(request:Request){
   try{
     if(!await authenticateAdmin(request))return Response.json({error:'גישת מנהל בלבד'},{status:403});
-    const {dayKey:date}=await request.json() as {dayKey?:string};if(!/^\d{4}-\d{2}-\d{2}$/.test(date||''))return Response.json({error:'חסר תאריך'},{status:400});
-    await ensureSchema();const db=database();const rows=await db.prepare('SELECT id, starts_at FROM slots WHERE is_open = 1').all<{id:string;starts_at:string}>();const ids=rows.results.filter(s=>dayKey(s.starts_at)===date).map(s=>s.id);if(!ids.length)return Response.json({error:'הארוחה לא נמצאה'},{status:404});await db.batch(ids.map(id=>db.prepare('UPDATE slots SET is_open = 0 WHERE id = ?').bind(id)));return Response.json({deleted:true});
+    const {dayKey:date,hard}=await request.json() as {dayKey?:string;hard?:boolean};if(!/^\d{4}-\d{2}-\d{2}$/.test(date||''))return Response.json({error:'חסר תאריך'},{status:400});
+    await ensureSchema();const db=database();
+    if(hard){
+      // Permanently erases a completed day: its slots (reservations and their seat
+      // preferences cascade with them) and the history record itself.
+      const rows=await db.prepare('SELECT id, starts_at FROM slots').all<{id:string;starts_at:string}>();const ids=rows.results.filter(s=>dayKey(s.starts_at)===date).map(s=>s.id);
+      if(!ids.length&&!(await db.prepare('SELECT day_key FROM service_days WHERE day_key = ?').bind(date).first()))return Response.json({error:'הארוחה לא נמצאה'},{status:404});
+      await db.batch([...ids.map(id=>db.prepare('DELETE FROM slots WHERE id = ?').bind(id)),db.prepare('DELETE FROM service_days WHERE day_key = ?').bind(date)]);
+      return Response.json({deleted:true});
+    }
+    const rows=await db.prepare('SELECT id, starts_at FROM slots WHERE is_open = 1').all<{id:string;starts_at:string}>();const ids=rows.results.filter(s=>dayKey(s.starts_at)===date).map(s=>s.id);if(!ids.length)return Response.json({error:'הארוחה לא נמצאה'},{status:404});await db.batch(ids.map(id=>db.prepare('UPDATE slots SET is_open = 0 WHERE id = ?').bind(id)));return Response.json({deleted:true});
   }catch(error){return Response.json({error:error instanceof Error?error.message:'לא הצלחנו למחוק את הארוחה'},{status:500});}
 }

@@ -147,11 +147,12 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .dashboard-stats strong { font-family:var(--font-serif),serif; font-size:26px; font-weight:400; }
 .dashboard-stats span { color:var(--muted); font-size:10px; }
 .history-list { border-top:1px solid var(--line); }
-.history-list>div { display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid var(--line); }
+.history-list>div { display:grid; grid-template-columns:1fr auto auto; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid var(--line); }
 .history-list>div>div { display:flex; flex-direction:column; gap:3px; }
 .history-list span { color:var(--muted); font-size:11px; }
 .history-list form { display:flex; flex-direction:row; gap:6px; }
 .history-list input { width:64px; min-height:38px; }
+.history-delete { background:transparent!important; color:var(--red)!important; border:1px solid var(--line)!important; }
 .reservations-day { padding:16px 0; border-top:1px solid var(--line); }
 .reservations-day:first-of-type { border-top:0; padding-top:0; }
 .table-scroll { overflow-x:auto; margin-top:10px; }
@@ -202,5 +203,5 @@ footer { max-width:1040px; margin:auto; border-top:1px solid var(--line); paddin
   .confirmation { padding:32px 22px; }
   .complete-day { grid-template-columns:1fr; }
   .complete-day button { width:100%; }
-  .history-list>div { grid-template-columns:1fr; }
+  .history-list>div { grid-template-columns:1fr; justify-items:start; }
 }
