@@ -33,7 +33,7 @@ export default function Home(){
   const selectedSlot=useMemo(()=>dateSlots.find(s=>s.id===selected),[dateSlots,selected]);
   function setPartySizeAndPreferences(n:number){setPartySize(n);setPreferences(current=>current.length>n?current.slice(0,n):[...current,...Array(n-current.length).fill('none')]);}
   function setSeatPreference(i:number,value:string){setPreferences(current=>current.map((p,idx)=>idx===i?value:p));}
-  async function reserve(){if(!selected||!token)return;setError('');const r=await fetchAuthed('/api/reservations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({slotId:selected,partySize,preferences,notes})});const d=await r.json() as {error?:string;reservation?:Confirmation};if(!r.ok||!d.reservation){setError(d.error||'Could not reserve');await load();return;}setConfirmation(d.reservation);await load();}
+  async function reserve(){if(!selected||!token)return;setError('');const r=await fetchAuthed('/api/reservations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({slotId:selected,partySize,preferences,notes})});const d=await r.json() as {error?:string;reservation?:Confirmation};if(!r.ok||!d.reservation){setError(d.error||'Could not reserve');await load();return;}setConfirmation(d.reservation);await load();await loadMine();}
   return <main>
     <nav className="nav"><a className="brand" href="#top"><img src="/ramen-logo.png" alt="Down7own Ramen"/><span>DOWN7OWN RAMEN</span></a>{!token&&<div className="google-button" style={{marginTop:0}}><GoogleSignIn onCredential={signIn}/></div>}</nav>
     {token&&<aside className="mine-panel">
