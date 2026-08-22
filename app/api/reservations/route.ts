@@ -2,10 +2,14 @@ import { database, ensureSchema } from '@/app/lib/database';
 import { verifySession } from '@/app/lib/session';
 
 type ReservationRow = { id:string; slot_id:string; party_size:number; status:string; starts_at:string; ends_at:string; preference:string; notes:string };
-const PREFERENCES = ['none', 'chicken', 'vegetarian'];
 
 function bearer(request: Request) { return request.headers.get('authorization')?.replace(/^Bearer\s+/i, ''); }
-function validPreference(p: unknown) { return typeof p === 'string' && PREFERENCES.includes(p); }
+async function validPreference(p: unknown) {
+  if (p === 'none') return true;
+  if (typeof p !== 'string') return false;
+  const match = await database().prepare('SELECT id FROM menu_options WHERE id = ?').bind(p).first<{ id:string }>();
+  return Boolean(match);
+}
 function validNotes(n: unknown) { return typeof n === 'string' && n.length <= 500; }
 
 export async function GET(request: Request) {
@@ -25,9 +29,9 @@ export async function POST(request: Request) {
     const user = await verifySession(token);
     const body = await request.json() as { slotId?:string; partySize?:number; preference?:string; notes?:string };
     if (!body.slotId || !Number.isInteger(body.partySize) || body.partySize! < 1 || body.partySize! > 10) return Response.json({ error:'Invalid reservation' }, { status:400 });
-    const preference = body.preference ?? 'none'; if (!validPreference(preference)) return Response.json({ error:'העדפה לא תקינה' }, { status:400 });
     const notes = body.notes ?? ''; if (!validNotes(notes)) return Response.json({ error:'ההערה ארוכה מדי' }, { status:400 });
     await ensureSchema(); const db = database();
+    const preference = body.preference ?? 'none'; if (!await validPreference(preference)) return Response.json({ error:'העדפה לא תקינה' }, { status:400 });
     const slot = await db.prepare('SELECT id, starts_at, ends_at, capacity, is_open FROM slots WHERE id = ?').bind(body.slotId).first<{id:string; starts_at:string; ends_at:string; capacity:number; is_open:number}>();
     if (!slot || !slot.is_open || slot.ends_at < new Date().toISOString()) return Response.json({ error:'This slot is unavailable' }, { status:409 });
     const id = crypto.randomUUID();
@@ -45,9 +49,9 @@ export async function PATCH(request: Request) {
     const body = await request.json() as { id?:string; partySize?:number; preference?:string; notes?:string };
     if (!body.id) return Response.json({ error:'חסר מזהה הזמנה' }, { status:400 });
     if (body.partySize !== undefined && (!Number.isInteger(body.partySize) || body.partySize < 1 || body.partySize > 10)) return Response.json({ error:'מספר סועדים לא תקין' }, { status:400 });
-    if (body.preference !== undefined && !validPreference(body.preference)) return Response.json({ error:'העדפה לא תקינה' }, { status:400 });
     if (body.notes !== undefined && !validNotes(body.notes)) return Response.json({ error:'ההערה ארוכה מדי' }, { status:400 });
     await ensureSchema(); const db = database();
+    if (body.preference !== undefined && !await validPreference(body.preference)) return Response.json({ error:'העדפה לא תקינה' }, { status:400 });
     const reservation = await db.prepare(`SELECT r.id, r.slot_id, r.status, s.ends_at, s.capacity FROM reservations r JOIN slots s ON s.id = r.slot_id WHERE r.id = ? AND r.google_subject = ?`).bind(body.id, user.sub).first<{ id:string; slot_id:string; status:string; ends_at:string; capacity:number }>();
     if (!reservation || reservation.status !== 'confirmed') return Response.json({ error:'ההזמנה לא נמצאה' }, { status:404 });
     if (reservation.ends_at < new Date().toISOString()) return Response.json({ error:'לא ניתן לערוך הזמנה שחלפה' }, { status:409 });

@@ -28,6 +28,8 @@ export function database() {
   return db;
 }
 
+const OVERBOOKING_TRIGGER = `CREATE TRIGGER IF NOT EXISTS prevent_slot_overbooking BEFORE INSERT ON reservations WHEN NEW.status = 'confirmed' AND (SELECT COALESCE(SUM(party_size), 0) + NEW.party_size FROM reservations WHERE slot_id = NEW.slot_id AND status = 'confirmed') > (SELECT capacity FROM slots WHERE id = NEW.slot_id AND is_open = 1) BEGIN SELECT RAISE(ABORT, 'slot_full'); END`;
+
 let schemaReady: Promise<void> | undefined;
 export function ensureSchema() {
   schemaReady ??= (async () => {
@@ -35,16 +37,34 @@ export function ensureSchema() {
     await d.batch([
       d.prepare('PRAGMA foreign_keys = ON').bind(),
       d.prepare(`CREATE TABLE IF NOT EXISTS slots (id TEXT PRIMARY KEY, starts_at TEXT NOT NULL UNIQUE, ends_at TEXT NOT NULL, capacity INTEGER NOT NULL CHECK (capacity > 0 AND capacity <= 100), is_open INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL)`).bind(),
-      d.prepare(`CREATE TABLE IF NOT EXISTS reservations (id TEXT PRIMARY KEY, slot_id TEXT NOT NULL REFERENCES slots(id) ON DELETE CASCADE, google_subject TEXT NOT NULL, guest_name TEXT NOT NULL, guest_email TEXT NOT NULL, party_size INTEGER NOT NULL DEFAULT 1 CHECK (party_size > 0 AND party_size <= 10), status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')), created_at TEXT NOT NULL, UNIQUE(slot_id, google_subject))`).bind(),
+      d.prepare(`CREATE TABLE IF NOT EXISTS reservations (id TEXT PRIMARY KEY, slot_id TEXT NOT NULL REFERENCES slots(id) ON DELETE CASCADE, google_subject TEXT NOT NULL, guest_name TEXT NOT NULL, guest_email TEXT NOT NULL, party_size INTEGER NOT NULL DEFAULT 1 CHECK (party_size > 0 AND party_size <= 10), status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')), created_at TEXT NOT NULL, preference TEXT NOT NULL DEFAULT 'none', notes TEXT NOT NULL DEFAULT '', UNIQUE(slot_id, google_subject))`).bind(),
       d.prepare(`CREATE INDEX IF NOT EXISTS idx_reservations_slot_status ON reservations(slot_id, status)`).bind(),
       d.prepare(`CREATE TABLE IF NOT EXISTS admins (email TEXT PRIMARY KEY COLLATE NOCASE, added_at TEXT NOT NULL, added_by TEXT NOT NULL)`).bind(),
       d.prepare(`CREATE TABLE IF NOT EXISTS service_days (day_key TEXT PRIMARY KEY, actual_attendees INTEGER NOT NULL CHECK (actual_attendees >= 0), completed_at TEXT NOT NULL, completed_by TEXT NOT NULL)`).bind(),
-      d.prepare(`CREATE TRIGGER IF NOT EXISTS prevent_slot_overbooking BEFORE INSERT ON reservations WHEN NEW.status = 'confirmed' AND (SELECT COALESCE(SUM(party_size), 0) + NEW.party_size FROM reservations WHERE slot_id = NEW.slot_id AND status = 'confirmed') > (SELECT capacity FROM slots WHERE id = NEW.slot_id AND is_open = 1) BEGIN SELECT RAISE(ABORT, 'slot_full'); END`).bind(),
+      d.prepare(`CREATE TABLE IF NOT EXISTS menu_options (id TEXT PRIMARY KEY, label TEXT NOT NULL UNIQUE, sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)`).bind(),
+      d.prepare(`CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, reservation_id TEXT NOT NULL REFERENCES reservations(id) ON DELETE CASCADE, sender TEXT NOT NULL CHECK (sender IN ('guest', 'admin')), body TEXT NOT NULL CHECK (length(body) BETWEEN 1 AND 1000), created_at TEXT NOT NULL)`).bind(),
+      d.prepare(`CREATE INDEX IF NOT EXISTS idx_messages_reservation ON messages(reservation_id, created_at)`).bind(),
+      d.prepare(OVERBOOKING_TRIGGER).bind(),
+      d.prepare(`INSERT OR IGNORE INTO menu_options (id, label, sort_order, created_at) VALUES ('chicken', 'עוף', 1, ?)`).bind(new Date().toISOString()),
+      d.prepare(`INSERT OR IGNORE INTO menu_options (id, label, sort_order, created_at) VALUES ('vegetarian', 'צמחוני', 2, ?)`).bind(new Date().toISOString()),
     ]);
     for (const alter of [
-      `ALTER TABLE reservations ADD COLUMN preference TEXT NOT NULL DEFAULT 'none' CHECK (preference IN ('none', 'chicken', 'vegetarian'))`,
+      `ALTER TABLE reservations ADD COLUMN preference TEXT NOT NULL DEFAULT 'none'`,
       `ALTER TABLE reservations ADD COLUMN notes TEXT NOT NULL DEFAULT ''`,
     ]) { try { await d.prepare(alter).bind().run(); } catch { /* column already exists */ } }
+    // Older deployments created `preference` with a hardcoded CHECK (...'chicken','vegetarian') —
+    // rebuild the table without it so admin-managed menu options can be freely added.
+    const def = await d.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'reservations'`).bind().first<{ sql: string }>();
+    if (def?.sql?.includes("'chicken'")) {
+      await d.batch([
+        d.prepare(`CREATE TABLE reservations_new (id TEXT PRIMARY KEY, slot_id TEXT NOT NULL REFERENCES slots(id) ON DELETE CASCADE, google_subject TEXT NOT NULL, guest_name TEXT NOT NULL, guest_email TEXT NOT NULL, party_size INTEGER NOT NULL DEFAULT 1 CHECK (party_size > 0 AND party_size <= 10), status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')), created_at TEXT NOT NULL, preference TEXT NOT NULL DEFAULT 'none', notes TEXT NOT NULL DEFAULT '', UNIQUE(slot_id, google_subject))`).bind(),
+        d.prepare(`INSERT INTO reservations_new SELECT id, slot_id, google_subject, guest_name, guest_email, party_size, status, created_at, preference, notes FROM reservations`).bind(),
+        d.prepare('DROP TABLE reservations').bind(),
+        d.prepare('ALTER TABLE reservations_new RENAME TO reservations').bind(),
+        d.prepare(`CREATE INDEX IF NOT EXISTS idx_reservations_slot_status ON reservations(slot_id, status)`).bind(),
+        d.prepare(OVERBOOKING_TRIGGER).bind(),
+      ]);
+    }
   })();
   return schemaReady;
 }
