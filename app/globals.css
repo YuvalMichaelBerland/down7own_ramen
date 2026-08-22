@@ -64,6 +64,7 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .reserve-flow label,.admin-card label { display:flex; flex-direction:column; gap:7px; font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--muted); }
 .reserve-flow select { align-self:flex-start; border:1px solid var(--line); background:#fff; padding:9px 30px 9px 12px; }
 .reserve-flow textarea { border:1px solid var(--line); background:#fff; padding:10px 12px; font:inherit; font-size:13px; resize:vertical; min-height:56px; }
+.seat-preferences { display:flex; flex-direction:column; gap:10px; }
 
 /* confirmation modal */
 .modal-backdrop { position:fixed; inset:0; z-index:20; display:grid; place-items:center; padding:20px; background:rgba(34,31,26,.6); backdrop-filter:blur(3px); }
@@ -96,8 +97,9 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .chat-bubble span { display:block; margin-top:3px; font-size:9px; opacity:.6; }
 .chat-input { display:flex; gap:6px; padding:8px; border-top:1px solid var(--line); }
 .chat-input textarea { flex:1; border:1px solid var(--line); resize:none; min-height:36px; padding:6px 8px; font:inherit; font-size:12px; }
-.chat-input button { border:0; background:var(--ink); color:var(--paper); padding:0 14px; cursor:pointer; font-size:11px; font-weight:600; }
-.chat-input button:disabled { opacity:.4; cursor:not-allowed; }
+.chat-input button { flex:0 0 auto; min-height:36px; padding:0 16px; border:1px solid var(--ink); background:var(--ink); color:var(--paper); cursor:pointer; font-size:12px; font-weight:700; white-space:nowrap; }
+.chat-input button:disabled { border-color:var(--line); background:var(--paper); color:var(--muted); cursor:not-allowed; }
+.badge-dot { display:inline-block; width:8px; height:8px; margin-inline-start:6px; border-radius:50%; background:var(--red); vertical-align:middle; }
 
 /* admin */
 .admin-page .nav { max-width:1040px; }
@@ -152,12 +154,23 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .history-list input { width:64px; min-height:38px; }
 .reservations-day { padding:16px 0; border-top:1px solid var(--line); }
 .reservations-day:first-of-type { border-top:0; padding-top:0; }
-.reservations-table { width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
-.reservations-table th { text-align:start; color:var(--muted); font-weight:600; padding:0 8px 8px 0; }
-.reservations-table td { padding:6px 8px 6px 0; border-top:1px solid var(--line); }
-.reservations-table input { width:100%; border:1px solid var(--line); background:white; min-height:32px; padding:0 8px; font:inherit; }
+.table-scroll { overflow-x:auto; margin-top:10px; }
+.reservations-table { width:100%; min-width:640px; border-collapse:collapse; font-size:12px; }
+.reservations-table th { text-align:start; color:var(--muted); font-weight:600; padding:0 10px 8px 0; white-space:nowrap; }
+.reservations-table td { padding:8px 10px 8px 0; border-top:1px solid var(--line); vertical-align:middle; }
+.reservations-table input { width:100%; min-width:160px; border:1px solid var(--line); background:white; min-height:32px; padding:0 8px; font:inherit; }
 .reservations-table select { border:1px solid var(--line); background:white; min-height:32px; padding:0 6px; font:inherit; }
-.reservations-table button { border:1px solid var(--ink); background:transparent; min-height:32px; padding:0 10px; cursor:pointer; font-size:11px; font-weight:600; }
+.reservations-table .notes-cell { max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.reservations-table .row-actions { display:flex; gap:6px; white-space:nowrap; }
+.reservations-table button { border:1px solid var(--ink); background:transparent; min-height:32px; padding:0 10px; cursor:pointer; font-size:11px; font-weight:600; white-space:nowrap; }
+.row-details { display:flex; flex-wrap:wrap; gap:14px; padding:14px 0; align-items:flex-end; }
+.row-details label { display:flex; flex-direction:column; gap:5px; font-size:10px; font-weight:700; color:var(--muted); }
+.row-details select,.row-details input { border:1px solid var(--line); background:white; min-height:34px; padding:0 8px; font:inherit; font-size:12px; }
+
+/* messages / threads */
+.thread-list { border-top:1px solid var(--line); }
+.thread-row { border-bottom:1px solid var(--line); padding:8px 0; }
+.thread-row>button { width:100%; display:flex; align-items:center; justify-content:space-between; border:0; background:transparent; padding:8px 4px; cursor:pointer; font-size:13px; font-weight:600; }
 
 footer { max-width:1040px; margin:auto; border-top:1px solid var(--line); padding:24px 28px 44px; display:flex; justify-content:space-between; color:var(--muted); font-size:10px; letter-spacing:.14em; }
 

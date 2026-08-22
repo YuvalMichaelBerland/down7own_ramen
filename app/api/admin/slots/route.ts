@@ -3,7 +3,8 @@ import { authenticateAdmin } from '@/app/lib/admin';
 
 type SlotRow={id:string;starts_at:string;ends_at:string;capacity:number;is_open:number;reserved:number};
 type CompletionRow={day_key:string;actual_attendees:number;completed_at:string};
-type ReservationRow={id:string;guest_name:string;guest_email:string;party_size:number;preference:string;notes:string;starts_at:string};
+type ReservationRow={id:string;guest_name:string;guest_email:string;party_size:number;notes:string;starts_at:string};
+type PreferenceRow={reservation_id:string;seat_index:number;preference:string};
 const dayKey=(iso:string)=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(iso)).map(p=>[p.type,p.value]));return `${parts.year}-${parts.month}-${parts.day}`;};
 
 export async function GET(request:Request){
@@ -13,12 +14,15 @@ export async function GET(request:Request){
     const [slotResult,completionResult,reservationResult]=await Promise.all([
       db.prepare(`SELECT s.id, s.starts_at, s.ends_at, s.capacity, s.is_open, COALESCE(SUM(CASE WHEN r.status = 'confirmed' THEN r.party_size ELSE 0 END), 0) AS reserved FROM slots s LEFT JOIN reservations r ON r.slot_id = s.id GROUP BY s.id ORDER BY s.starts_at ASC LIMIT 500`).all<SlotRow>(),
       db.prepare('SELECT day_key, actual_attendees, completed_at FROM service_days ORDER BY day_key DESC').all<CompletionRow>(),
-      db.prepare(`SELECT r.id, r.guest_name, r.guest_email, r.party_size, r.preference, r.notes, s.starts_at FROM reservations r JOIN slots s ON s.id = r.slot_id WHERE r.status = 'confirmed' ORDER BY s.starts_at ASC`).all<ReservationRow>(),
+      db.prepare(`SELECT r.id, r.guest_name, r.guest_email, r.party_size, r.notes, s.starts_at FROM reservations r JOIN slots s ON s.id = r.slot_id WHERE r.status = 'confirmed' ORDER BY s.starts_at ASC`).all<ReservationRow>(),
     ]);
+    const prefResult=reservationResult.results.length?await db.prepare(`SELECT reservation_id, seat_index, preference FROM reservation_preferences WHERE reservation_id IN (${reservationResult.results.map(()=>'?').join(',')}) ORDER BY seat_index ASC`).bind(...reservationResult.results.map(r=>r.id)).all<PreferenceRow>():{results:[] as PreferenceRow[]};
+    const prefsByReservation=new Map<string,string[]>();
+    for(const p of prefResult.results){const list=prefsByReservation.get(p.reservation_id)??[];list.push(p.preference);prefsByReservation.set(p.reservation_id,list);}
     const completions=new Map(completionResult.results.map(c=>[c.day_key,c]));
-    const grouped=new Map<string,{dayKey:string;startsAt:string;endsAt:string;capacity:number;reserved:number;slotCount:number;slotIds:string[];isOpen:boolean;actualAttendees?:number;completedAt?:string;reservations:{id:string;guestName:string;guestEmail:string;partySize:number;preference:string;notes:string}[]}>();
+    const grouped=new Map<string,{dayKey:string;startsAt:string;endsAt:string;capacity:number;reserved:number;slotCount:number;slotIds:string[];isOpen:boolean;actualAttendees?:number;completedAt?:string;reservations:{id:string;guestName:string;guestEmail:string;partySize:number;preferences:string[];notes:string}[]}>();
     for(const slot of slotResult.results){const key=dayKey(slot.starts_at);const current=grouped.get(key);if(current){current.endsAt=slot.ends_at>current.endsAt?slot.ends_at:current.endsAt;current.capacity+=slot.capacity;current.reserved+=Number(slot.reserved);current.slotCount+=1;current.slotIds.push(slot.id);current.isOpen=current.isOpen||Boolean(slot.is_open);}else{grouped.set(key,{dayKey:key,startsAt:slot.starts_at,endsAt:slot.ends_at,capacity:slot.capacity,reserved:Number(slot.reserved),slotCount:1,slotIds:[slot.id],isOpen:Boolean(slot.is_open),reservations:[]});}}
-    for(const r of reservationResult.results){const day=grouped.get(dayKey(r.starts_at));if(day)day.reservations.push({id:r.id,guestName:r.guest_name,guestEmail:r.guest_email,partySize:r.party_size,preference:r.preference,notes:r.notes});}
+    for(const r of reservationResult.results){const day=grouped.get(dayKey(r.starts_at));if(day)day.reservations.push({id:r.id,guestName:r.guest_name,guestEmail:r.guest_email,partySize:r.party_size,preferences:prefsByReservation.get(r.id)??Array(r.party_size).fill('none'),notes:r.notes});}
     for(const [key,completion] of completions){const day=grouped.get(key);if(day){day.actualAttendees=completion.actual_attendees;day.completedAt=completion.completed_at;day.isOpen=false;}}
     const all=[...grouped.values()];
     return Response.json({isChef:true,days:all.filter(d=>d.isOpen&&!d.completedAt),history:all.filter(d=>d.completedAt).sort((a,b)=>b.dayKey.localeCompare(a.dayKey))});
