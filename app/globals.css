@@ -154,3 +154,19 @@ body { background-color:var(--paper); background-image:radial-gradient(rgba(68,5
   .admin-heading::after { margin-top:24px; }
   .admin-card { padding:24px 19px; }
 }
+
+.date-tabs { max-width:1180px; margin:0 auto 16px; padding:0 28px; display:flex; gap:8px; overflow-x:auto; }
+.date-tabs button { flex:0 0 auto; border:1px solid var(--line); background:#fffdf8; padding:11px 16px; cursor:pointer; font-size:12px; font-weight:700; }
+.date-tabs button.active { border-color:var(--ink); background:var(--ink); color:white; }
+.published-card { min-height:0; }
+.published-list { border-top:1px solid var(--line); }
+.published-slot { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:15px 0; border-bottom:1px solid var(--line); }
+.published-slot>div { display:flex; flex-direction:column; gap:4px; }
+.published-slot strong { font-size:13px; }
+.published-slot span { color:#777267; font-size:11px; }
+.published-slot button { border:0; background:transparent; color:var(--red); cursor:pointer; font-size:12px; font-weight:700; }
+
+@media (max-width:760px) {
+  .date-tabs { padding:0 14px; margin-bottom:12px; }
+  .date-tabs button { padding:10px 13px; font-size:11px; }
+}
