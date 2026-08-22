@@ -41,6 +41,10 @@ export function ensureSchema() {
       d.prepare(`CREATE TABLE IF NOT EXISTS service_days (day_key TEXT PRIMARY KEY, actual_attendees INTEGER NOT NULL CHECK (actual_attendees >= 0), completed_at TEXT NOT NULL, completed_by TEXT NOT NULL)`).bind(),
       d.prepare(`CREATE TRIGGER IF NOT EXISTS prevent_slot_overbooking BEFORE INSERT ON reservations WHEN NEW.status = 'confirmed' AND (SELECT COALESCE(SUM(party_size), 0) + NEW.party_size FROM reservations WHERE slot_id = NEW.slot_id AND status = 'confirmed') > (SELECT capacity FROM slots WHERE id = NEW.slot_id AND is_open = 1) BEGIN SELECT RAISE(ABORT, 'slot_full'); END`).bind(),
     ]);
+    for (const alter of [
+      `ALTER TABLE reservations ADD COLUMN preference TEXT NOT NULL DEFAULT 'none' CHECK (preference IN ('none', 'chicken', 'vegetarian'))`,
+      `ALTER TABLE reservations ADD COLUMN notes TEXT NOT NULL DEFAULT ''`,
+    ]) { try { await d.prepare(alter).bind().run(); } catch { /* column already exists */ } }
   })();
   return schemaReady;
 }

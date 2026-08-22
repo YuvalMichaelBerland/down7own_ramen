@@ -60,9 +60,10 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .date-card>.empty-date+h2 { font-family:var(--font-serif),serif; font-size:32px; font-weight:400; margin:0 0 8px; }
 .date-card>.empty-date+h2+p { color:#c9c1af; line-height:1.6; }
 .empty-copy { color:var(--muted); line-height:1.6; }
-.reserve-flow { margin-top:22px; }
+.reserve-flow { margin-top:22px; display:flex; flex-direction:column; gap:16px; }
 .reserve-flow label,.admin-card label { display:flex; flex-direction:column; gap:7px; font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--muted); }
 .reserve-flow select { align-self:flex-start; border:1px solid var(--line); background:#fff; padding:9px 30px 9px 12px; }
+.reserve-flow textarea { border:1px solid var(--line); background:#fff; padding:10px 12px; font:inherit; font-size:13px; resize:vertical; min-height:56px; }
 
 /* confirmation modal */
 .modal-backdrop { position:fixed; inset:0; z-index:20; display:grid; place-items:center; padding:20px; background:rgba(34,31,26,.6); backdrop-filter:blur(3px); }
@@ -80,6 +81,9 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .mine-actions { display:flex; gap:8px; align-items:center; }
 .mine-actions select { border:1px solid var(--line); background:white; min-height:34px; padding:0 8px; font:inherit; }
 .mine-actions button { border:1px solid var(--ink); background:transparent; min-height:34px; padding:0 12px; cursor:pointer; font-size:11px; font-weight:600; }
+.mine-field { display:flex; flex-direction:column; gap:5px; margin-top:8px; font-size:10px; font-weight:700; letter-spacing:.04em; color:var(--muted); }
+.mine-field select,.mine-field textarea { border:1px solid var(--line); background:white; font:inherit; font-size:12px; padding:6px 8px; }
+.mine-field textarea { resize:vertical; min-height:44px; }
 @media (max-width:900px) { .mine-panel { position:static; width:auto; margin:16px 28px 0; box-shadow:none; } }
 
 /* admin */
