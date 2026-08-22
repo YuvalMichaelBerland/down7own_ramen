@@ -6,7 +6,7 @@ type Slot={id:string;startsAt:string;endsAt:string;capacity:number;remaining:num
 type Confirmation={id:string;startsAt:string;partySize:number;guestName:string};
 const fmtDate=(iso:string)=>new Intl.DateTimeFormat('he-IL',{weekday:'long',month:'long',day:'numeric'}).format(new Date(iso));
 const fmtTime=(iso:string)=>new Intl.DateTimeFormat('he-IL',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
-const dateKey=(iso:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(iso));
+const dateKey=(iso:string)=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(iso)).map(p=>[p.type,p.value]));return `${parts.year}-${parts.month}-${parts.day}`;};
 
 export default function Home(){
   const [slots,setSlots]=useState<Slot[]>([]),[activeDate,setActiveDate]=useState(''),[selected,setSelected]=useState<string>(),[partySize,setPartySize]=useState(1),[credential,setCredential]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState(''),[confirmation,setConfirmation]=useState<Confirmation>();

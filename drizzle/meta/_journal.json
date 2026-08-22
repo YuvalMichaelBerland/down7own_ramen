@@ -15,6 +15,13 @@
       "when": 1787327197100,
       "tag": "0001_jittery_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787399979035,
+      "tag": "0002_special_celestials",
+      "breakpoints": true
     }
   ]
 }

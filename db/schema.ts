@@ -17,3 +17,10 @@ export const admins = sqliteTable('admins', {
   addedAt: text('added_at').notNull(),
   addedBy: text('added_by').notNull(),
 });
+
+export const serviceDays = sqliteTable('service_days', {
+  dayKey: text('day_key').primaryKey(),
+  actualAttendees: integer('actual_attendees').notNull(),
+  completedAt: text('completed_at').notNull(),
+  completedBy: text('completed_by').notNull(),
+});
