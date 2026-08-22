@@ -168,9 +168,12 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .row-details select,.row-details input { border:1px solid var(--line); background:white; min-height:34px; padding:0 8px; font:inherit; font-size:12px; }
 
 /* messages / threads */
+.thread-hint { font-size:11px; margin:-14px 0 14px; }
 .thread-list { border-top:1px solid var(--line); }
 .thread-row { border-bottom:1px solid var(--line); padding:8px 0; }
-.thread-row>button { width:100%; display:flex; align-items:center; justify-content:space-between; border:0; background:transparent; padding:8px 4px; cursor:pointer; font-size:13px; font-weight:600; }
+.thread-header { display:flex; align-items:center; gap:8px; }
+.thread-header>button:first-child { flex:1; display:flex; align-items:center; justify-content:flex-start; border:0; background:transparent; padding:8px 4px; cursor:pointer; font-size:13px; font-weight:600; }
+.thread-complete { flex:0 0 auto; border:1px solid var(--line); background:transparent; min-height:30px; padding:0 10px; cursor:pointer; font-size:11px; font-weight:600; color:var(--red); }
 
 footer { max-width:1040px; margin:auto; border-top:1px solid var(--line); padding:24px 28px 44px; display:flex; justify-content:space-between; color:var(--muted); font-size:10px; letter-spacing:.14em; }
 

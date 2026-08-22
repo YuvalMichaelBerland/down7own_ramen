@@ -1,5 +1,6 @@
 import { database, ensureSchema } from '@/app/lib/database';
 import { verifySession } from '@/app/lib/session';
+import { purgeStaleThreads } from '@/app/lib/messages';
 
 type MessageRow = { id:string; sender:string; body:string; created_at:string };
 
@@ -10,6 +11,7 @@ export async function GET(request: Request) {
     const token = bearer(request);
     if (!token) return Response.json({ error: 'התחברו כדי לראות הודעות' }, { status: 401 });
     const user = await verifySession(token); await ensureSchema(); const db = database();
+    await purgeStaleThreads();
     const rows = await db.prepare('SELECT id, sender, body, created_at FROM messages WHERE google_subject = ? ORDER BY created_at ASC').bind(user.sub).all<MessageRow>();
     await db.prepare(`UPDATE messages SET read = 1 WHERE google_subject = ? AND sender = 'admin' AND read = 0`).bind(user.sub).run();
     return Response.json({ messages: rows.results.map((m) => ({ id:m.id, sender:m.sender, body:m.body, createdAt:m.created_at })) });

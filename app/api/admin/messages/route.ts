@@ -1,5 +1,6 @@
 import { database, ensureSchema } from '@/app/lib/database';
 import { authenticateAdmin } from '@/app/lib/admin';
+import { purgeStaleThreads } from '@/app/lib/messages';
 
 type ThreadRow = { google_subject:string; guest_name:string; guest_email:string; last:string; unread:number };
 type MessageRow = { id:string; sender:string; body:string; created_at:string };
@@ -7,6 +8,7 @@ type MessageRow = { id:string; sender:string; body:string; created_at:string };
 export async function GET(request: Request) {
   if (!await authenticateAdmin(request)) return Response.json({ error: 'גישת מנהל בלבד' }, { status: 403 });
   await ensureSchema(); const db = database();
+  await purgeStaleThreads();
   const subject = new URL(request.url).searchParams.get('subject');
   if (subject) {
     const rows = await db.prepare('SELECT id, sender, body, created_at FROM messages WHERE google_subject = ? ORDER BY created_at ASC').bind(subject).all<MessageRow>();
@@ -15,6 +17,15 @@ export async function GET(request: Request) {
   }
   const rows = await db.prepare(`SELECT google_subject, MAX(CASE WHEN guest_name != '' THEN guest_name END) AS guest_name, MAX(CASE WHEN guest_email != '' THEN guest_email END) AS guest_email, MAX(created_at) AS last, SUM(CASE WHEN sender = 'guest' AND read = 0 THEN 1 ELSE 0 END) AS unread FROM messages GROUP BY google_subject ORDER BY last DESC`).bind().all<ThreadRow>();
   return Response.json({ threads: rows.results.map((t) => ({ subject:t.google_subject, guestName:t.guest_name, guestEmail:t.guest_email, lastAt:t.last, unread:Number(t.unread) })) });
+}
+
+export async function DELETE(request: Request) {
+  if (!await authenticateAdmin(request)) return Response.json({ error: 'גישת מנהל בלבד' }, { status: 403 });
+  const subject = new URL(request.url).searchParams.get('subject');
+  if (!subject) return Response.json({ error: 'חסר מזהה שיחה' }, { status: 400 });
+  await ensureSchema();
+  await database().prepare('DELETE FROM messages WHERE google_subject = ?').bind(subject).run();
+  return Response.json({ completed: true });
 }
 
 export async function POST(request: Request) {
