@@ -22,8 +22,9 @@ class D1LikeDatabase {
 let client: Client | undefined;
 let db: D1LikeDatabase | undefined;
 export function database() {
-  if (!process.env.TURSO_DATABASE_URL) throw new Error('Database is unavailable: set TURSO_DATABASE_URL (and TURSO_AUTH_TOKEN)');
-  client ??= createClient({ url: process.env.TURSO_DATABASE_URL, authToken: process.env.TURSO_AUTH_TOKEN });
+  const url = process.env.TURSO_DATABASE_URL?.trim();
+  if (!url) throw new Error('Database is unavailable: set TURSO_DATABASE_URL (and TURSO_AUTH_TOKEN)');
+  client ??= createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN?.trim() });
   db ??= new D1LikeDatabase(client);
   return db;
 }
