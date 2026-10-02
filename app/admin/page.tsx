@@ -128,6 +128,7 @@ export default function Admin(){
                 </>:<button type="button" className="history-delete" onClick={()=>deleteHistory(day)}>מחיקה לצמיתות</button>}
               </div>
               {day.slots.length?<div className="table-scroll"><table className="week-table"><thead><tr><th>שעה</th><th>שם</th><th>טלפון</th>{menuOptions.map(o=><th key={o.id}>{o.label}</th>)}<th>הערה</th><th/></tr></thead><tbody>
+                <tr className="week-total-row"><td colSpan={3}>סה״כ · {sorted.reduce((s,r)=>s+r.partySize,0)} סועדים</td>{totals.map((t,i)=><td key={i}>{t}</td>)}<td/><td/></tr>
                 {[...day.slots].sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).map(slot=>{
                   const slotReservations=sorted.filter(r=>r.startsAt===slot.startsAt);
                   if(!slotReservations.length)return <tr key={slot.startsAt} className="empty-slot-row"><td>{fmtTime(slot.startsAt)}</td><td colSpan={menuOptions.length+4} className="empty-copy">פנוי · {slot.capacity} מקומות</td></tr>;
@@ -146,7 +147,6 @@ export default function Admin(){
                     </div></td></tr>}
                   </Fragment>);
                 })}
-                <tr className="week-total-row"><td colSpan={3}>סה״כ · {sorted.reduce((s,r)=>s+r.partySize,0)} סועדים</td>{totals.map((t,i)=><td key={i}>{t}</td>)}<td/><td/></tr>
               </tbody></table></div>:<p className="empty-copy">אין משבצות ליום זה.</p>}
             </div>;
           })}</div>:<p className="empty-copy">אין ארוחות מתוכננות לשבוע זה.</p>}
