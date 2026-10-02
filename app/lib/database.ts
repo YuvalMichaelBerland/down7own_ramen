@@ -29,7 +29,7 @@ export function database() {
   return db;
 }
 
-const RESERVATIONS_TABLE = `CREATE TABLE IF NOT EXISTS reservations (id TEXT PRIMARY KEY, slot_id TEXT NOT NULL REFERENCES slots(id) ON DELETE CASCADE, google_subject TEXT NOT NULL, guest_name TEXT NOT NULL, guest_email TEXT NOT NULL, party_size INTEGER NOT NULL DEFAULT 1 CHECK (party_size > 0 AND party_size <= 10), status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')), created_at TEXT NOT NULL, preference TEXT NOT NULL DEFAULT 'none', notes TEXT NOT NULL DEFAULT '')`;
+const RESERVATIONS_TABLE = `CREATE TABLE IF NOT EXISTS reservations (id TEXT PRIMARY KEY, slot_id TEXT NOT NULL REFERENCES slots(id) ON DELETE CASCADE, google_subject TEXT NOT NULL, guest_name TEXT NOT NULL, guest_email TEXT NOT NULL, guest_phone TEXT NOT NULL DEFAULT '', party_size INTEGER NOT NULL DEFAULT 1 CHECK (party_size > 0 AND party_size <= 10), status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')), created_at TEXT NOT NULL, preference TEXT NOT NULL DEFAULT 'none', notes TEXT NOT NULL DEFAULT '')`;
 // Partial index: only CONFIRMED reservations block a repeat booking for the same slot+guest,
 // so cancelling and re-booking the same slot works instead of hitting a stale UNIQUE violation.
 const RESERVATIONS_UNIQUE_INDEX = `CREATE UNIQUE INDEX IF NOT EXISTS idx_reservations_slot_guest_active ON reservations(slot_id, google_subject) WHERE status = 'confirmed'`;
@@ -56,6 +56,7 @@ export function ensureSchema() {
     for (const alter of [
       `ALTER TABLE reservations ADD COLUMN preference TEXT NOT NULL DEFAULT 'none'`,
       `ALTER TABLE reservations ADD COLUMN notes TEXT NOT NULL DEFAULT ''`,
+      `ALTER TABLE reservations ADD COLUMN guest_phone TEXT NOT NULL DEFAULT ''`,
     ]) { try { await d.prepare(alter).bind().run(); } catch { /* column already exists */ } }
 
     // Older deployments created `preference` with a hardcoded CHECK, and/or an inline
@@ -65,7 +66,7 @@ export function ensureSchema() {
     if (def?.sql?.includes("'chicken'") || def?.sql?.includes('UNIQUE(slot_id, google_subject)')) {
       await d.batch([
         d.prepare(RESERVATIONS_TABLE.replace('reservations', 'reservations_new')).bind(),
-        d.prepare(`INSERT INTO reservations_new SELECT id, slot_id, google_subject, guest_name, guest_email, party_size, status, created_at, preference, notes FROM reservations`).bind(),
+        d.prepare(`INSERT INTO reservations_new (id, slot_id, google_subject, guest_name, guest_email, guest_phone, party_size, status, created_at, preference, notes) SELECT id, slot_id, google_subject, guest_name, guest_email, guest_phone, party_size, status, created_at, preference, notes FROM reservations`).bind(),
         d.prepare('DROP TABLE reservations').bind(),
         d.prepare('ALTER TABLE reservations_new RENAME TO reservations').bind(),
         d.prepare(`CREATE INDEX IF NOT EXISTS idx_reservations_slot_status ON reservations(slot_id, status)`).bind(),

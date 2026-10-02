@@ -64,6 +64,9 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .reserve-flow label,.admin-card label { display:flex; flex-direction:column; gap:7px; font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--muted); }
 .reserve-flow select { align-self:flex-start; border:1px solid var(--line); background:#fff; padding:9px 30px 9px 12px; }
 .reserve-flow textarea { border:1px solid var(--line); background:#fff; padding:10px 12px; font:inherit; font-size:13px; resize:vertical; min-height:56px; }
+.reserve-flow input { border:1px solid var(--line); background:#fff; padding:10px 12px; font:inherit; font-size:13px; min-height:40px; }
+.reserve:disabled { opacity:.45; cursor:not-allowed; }
+.mine-field input { border:1px solid var(--line); background:white; font:inherit; font-size:12px; padding:6px 8px; min-height:32px; }
 .seat-preferences { display:flex; flex-direction:column; gap:10px; }
 
 /* confirmation modal */
