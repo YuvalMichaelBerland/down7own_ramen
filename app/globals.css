@@ -50,8 +50,8 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .slot:hover:not(:disabled),.slot.selected { border-color:var(--red-soft); background:var(--red-soft); color:#fff8ee; }
 .slot.selected span { color:#e4c3c0; }
 .slot:disabled { opacity:.35; cursor:not-allowed; text-decoration:line-through; }
-.reserve { width:100%; border:0; background:var(--red); color:#fff8ee; min-height:54px; margin-top:22px; padding:0 22px; display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:13px; letter-spacing:.03em; cursor:pointer; transition:.15s ease; }
-.reserve:hover { background:#9c1a1f; }
+.reserve { width:100%; border:0; background:var(--red-soft); color:#fff8ee; min-height:54px; margin-top:22px; padding:0 22px; display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:13px; letter-spacing:.03em; cursor:pointer; transition:.15s ease; }
+.reserve:hover { background:#7f2f2a; }
 .reserve span { font-size:18px; font-weight:400; }
 .fineprint { text-align:center; color:var(--muted); font-size:11px; margin:12px 0 0; }
 .google-button { display:flex; justify-content:center; min-height:40px; }
@@ -74,6 +74,7 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .modal-backdrop { position:fixed; inset:0; z-index:20; display:grid; place-items:center; padding:20px; background:rgba(34,31,26,.6); backdrop-filter:blur(3px); }
 .confirmation { position:relative; max-width:460px; background:var(--paper-card); border:1px solid var(--line); box-shadow:0 30px 60px -20px rgba(34,31,26,.45); padding:48px; overflow:hidden; }
 .confirmation h2,.admin-card h2 { font-family:var(--font-serif),serif; font-size:36px; font-weight:400; margin:0 0 14px; }
+.confirmation .kicker { margin-top:28px; }
 .confirmation p { line-height:1.65; }
 .confirmation-id { font-size:10px; letter-spacing:.12em; color:var(--muted); }
 .stamp { position:absolute; inset-inline-start:22px; top:18px; color:var(--red); border:1.5px solid var(--red); border-radius:50%; width:58px; height:58px; display:grid; place-items:center; transform:rotate(-6deg); font-family:var(--font-serif),serif; font-size:20px; }
