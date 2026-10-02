@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { GoogleSignIn } from '../components/GoogleSignIn';
 import { ChatPanel } from '../components/ChatPanel';
 import { useSession } from '../lib/useSession';
@@ -8,12 +8,32 @@ import { useSession } from '../lib/useSession';
 type Admin={email:string;added_at:string};
 type PlannedSlot={key:string;startTime:string;durationMinutes:number;capacity:number};
 type MenuOption={id:string;label:string};
-type ReservationRow={id:string;guestName:string;guestEmail:string;guestPhone:string;partySize:number;preferences:string[];notes:string};
+type ReservationRow={id:string;guestName:string;guestEmail:string;guestPhone:string;partySize:number;preferences:string[];notes:string;startsAt:string};
 type Thread={subject:string;guestName:string;guestEmail:string;lastAt:string;unread:number};
 type ServiceDay={dayKey:string;startsAt:string;endsAt:string;capacity:number;reserved:number;slotCount:number;actualAttendees?:number;completedAt?:string;reservations:ReservationRow[]};
 const newSlot=(startTime='19:00',capacity=10,durationMinutes=30):PlannedSlot=>({key:crypto.randomUUID(),startTime,durationMinutes,capacity});
 const fmtDate=(iso:string)=>new Intl.DateTimeFormat('he-IL',{weekday:'short',day:'numeric',month:'short'}).format(new Date(iso));
 const fmtTime=(iso:string)=>new Intl.DateTimeFormat('he-IL',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
+const parseDayKey=(k:string)=>{const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d);};
+const startOfWeek=(d:Date)=>{const date=new Date(d);date.setDate(date.getDate()-date.getDay());date.setHours(0,0,0,0);return date;};
+const csvEscape=(v:string)=>`"${String(v).replace(/"/g,'""')}"`;
+function buildWeekCsv(days:ServiceDay[],menuOptions:MenuOption[]){
+  const lines:string[]=[];
+  for(const day of [...days].sort((a,b)=>a.dayKey.localeCompare(b.dayKey))){
+    lines.push(csvEscape(fmtDate(day.startsAt)));
+    lines.push(['שעה','שם מלא','טלפון',...menuOptions.map(o=>o.label),'הערה'].map(csvEscape).join(','));
+    const sorted=[...day.reservations].sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
+    const totals=menuOptions.map(()=>0);
+    for(const r of sorted){
+      const counts=menuOptions.map(o=>r.preferences.filter(p=>p===o.id).length);
+      counts.forEach((c,i)=>{totals[i]+=c;});
+      lines.push([fmtTime(r.startsAt),r.guestName,r.guestPhone,...counts.map(String),r.notes||''].map(csvEscape).join(','));
+    }
+    lines.push(['','סה״כ',String(sorted.reduce((s,r)=>s+r.partySize,0)),...totals.map(String),''].map(csvEscape).join(','));
+    lines.push('');
+  }
+  return '﻿'+lines.join('\r\n');
+}
 
 export default function Admin(){
   const { token, signIn, authHeaders } = useSession();
@@ -35,6 +55,7 @@ export default function Admin(){
   const [detailsOpen,setDetailsOpen]=useState<string>();
   const [threads,setThreads]=useState<Thread[]>([]);
   const [chatSubject,setChatSubject]=useState<string>();
+  const [weekOffset,setWeekOffset]=useState(0);
   const loadMenuOptions=useCallback(async()=>{const r=await fetch('/api/menu-options');if(r.ok){const d=await r.json() as {options:MenuOption[]};setMenuOptions(d.options||[]);}},[]);
   useEffect(()=>{loadMenuOptions();},[loadMenuOptions]);
   const loadThreads=useCallback(async()=>{const r=await fetch('/api/admin/messages',{headers:authHeaders()});if(r.ok){const d=await r.json() as {threads:Thread[]};setThreads(d.threads||[]);}},[authHeaders]);
@@ -58,6 +79,11 @@ export default function Admin(){
   async function updateReservation(id:string,patch:Partial<Pick<ReservationRow,'guestName'|'guestEmail'|'guestPhone'|'partySize'|'preferences'|'notes'>>){const r=await fetch('/api/admin/reservations',{method:'PATCH',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({id,...patch})});const d=await r.json() as {error?:string};if(!r.ok){setMessage(d.error||'לא הצלחנו לעדכן את ההזמנה');return;}await loadPublished();}
   async function cancelReservation(id:string){if(!window.confirm('לבטל את ההזמנה הזו?'))return;const r=await fetch('/api/admin/reservations',{method:'DELETE',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({id})});const d=await r.json() as {error?:string};if(!r.ok){setMessage(d.error||'לא הצלחנו לבטל את ההזמנה');return;}await loadPublished();}
   const totalActual=history.reduce((sum,d)=>sum+(d.actualAttendees||0),0),totalReserved=history.reduce((sum,d)=>sum+d.reserved,0);
+  const weekStart=useMemo(()=>{const s=startOfWeek(new Date());s.setDate(s.getDate()+weekOffset*7);return s;},[weekOffset]);
+  const weekDays=useMemo(()=>{const weekStartTime=weekStart.getTime();return [...published,...history].filter(d=>startOfWeek(parseDayKey(d.dayKey)).getTime()===weekStartTime).sort((a,b)=>a.dayKey.localeCompare(b.dayKey));},[published,history,weekStart]);
+  const weekEnd=useMemo(()=>{const e=new Date(weekStart);e.setDate(e.getDate()+6);return e;},[weekStart]);
+  const weekRangeLabel=`${weekStart.toLocaleDateString('he-IL',{day:'numeric',month:'short'})} – ${weekEnd.toLocaleDateString('he-IL',{day:'numeric',month:'short'})}`;
+  function exportWeek(){const csv=buildWeekCsv(weekDays,menuOptions);const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`דוח-שבועי-${weekStart.toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
   return <main className="admin-page">
     <nav className="nav"><Link className="brand" href="/"><img src="/ramen-logo.png" alt="Down7own Ramen"/><span>DOWN7OWN RAMEN</span></Link><Link className="chef-link" href="/">לתצוגת אורחים</Link></nav>
     <section className="admin-wrap">
@@ -81,6 +107,24 @@ export default function Admin(){
             <label>הערה<input defaultValue={r.notes} onBlur={e=>e.target.value!==r.notes&&updateReservation(r.id,{notes:e.target.value})}/></label>
           </div></td></tr>}
         </Fragment>)}</tbody></table></div>:<p className="empty-copy">אין הזמנות ליום זה.</p>}</div>):<p className="empty-copy">אין עדיין הזמנות.</p>}</div>}
+        {authorized&&<div className="admin-card week-card">
+          <div className="week-header">
+            <div><p className="kicker">דוח שבועי</p><h2>תצוגת שבוע</h2></div>
+            <button type="button" className="export-button" onClick={exportWeek} disabled={!weekDays.length}>ייצוא לאקסל</button>
+          </div>
+          <div className="week-nav"><button type="button" onClick={()=>setWeekOffset(w=>w-1)}>‹ קודם</button><span>{weekRangeLabel}</span><button type="button" onClick={()=>setWeekOffset(w=>w+1)}>הבא ›</button>{weekOffset!==0&&<button type="button" onClick={()=>setWeekOffset(0)}>השבוע</button>}</div>
+          {weekDays.length?<div className="week-days">{weekDays.map(day=>{
+            const sorted=[...day.reservations].sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
+            const totals=menuOptions.map(o=>sorted.reduce((sum,r)=>sum+r.preferences.filter(p=>p===o.id).length,0));
+            return <div className="week-day-block" key={day.dayKey}>
+              <h3>{fmtDate(day.startsAt)}{day.completedAt&&<span className="day-status">הושלם</span>}</h3>
+              {sorted.length?<table className="week-table"><thead><tr><th>שעה</th><th>שם</th><th>טלפון</th>{menuOptions.map(o=><th key={o.id}>{o.label}</th>)}<th>הערה</th></tr></thead><tbody>
+                {sorted.map(r=><tr key={r.id}><td>{fmtTime(r.startsAt)}</td><td>{r.guestName}</td><td>{r.guestPhone}</td>{menuOptions.map(o=><td key={o.id}>{r.preferences.filter(p=>p===o.id).length||''}</td>)}<td>{r.notes||''}</td></tr>)}
+                <tr className="week-total-row"><td colSpan={3}>סה״כ · {sorted.reduce((s,r)=>s+r.partySize,0)} סועדים</td>{totals.map((t,i)=><td key={i}>{t}</td>)}<td/></tr>
+              </tbody></table>:<p className="empty-copy">אין הזמנות ליום זה.</p>}
+            </div>;
+          })}</div>:<p className="empty-copy">אין ארוחות מתוכננות לשבוע זה.</p>}
+        </div>}
         {authorized&&<div className="admin-card messages-card"><p className="kicker">פניות</p><h2>הודעות</h2><p className="empty-copy thread-hint">שיחות ללא פעילות נמחקות אוטומטית אחרי 3 ימים.</p>{threads.length?<div className="thread-list">{threads.map(t=><div key={t.subject} className="thread-row"><div className="thread-header"><button type="button" onClick={()=>setChatSubject(chatSubject===t.subject?undefined:t.subject)}><span>{t.guestName||t.guestEmail||'אורח'}</span>{t.unread>0&&<span className="badge-dot"/>}</button><button type="button" className="thread-complete" onClick={()=>completeChat(t.subject)}>סיום שיחה</button></div>{chatSubject===t.subject&&<ChatPanel url={`/api/admin/messages?subject=${encodeURIComponent(t.subject)}`} authHeaders={authHeaders} self="admin"/>}</div>)}</div>:<p className="empty-copy">אין עדיין פניות.</p>}</div>}
         {authorized&&<div className="admin-card menu-card"><p className="kicker">תפריט</p><h2>אפשרויות מנה</h2><form className="add-admin" onSubmit={addOption}><label>הוספת אפשרות<input required placeholder="למשל: דגים" value={newOption} onChange={e=>setNewOption(e.target.value)}/></label><button type="submit">הוספה</button></form><div className="admin-list">{menuOptions.map(o=><div key={o.id}><span>{o.label}</span><button type="button" onClick={()=>removeOption(o.id)} aria-label={`הסרת ${o.label}`}>הסרה</button></div>)}</div></div>}
         {authorized&&<div className="admin-card admins-card"><p className="kicker">מנהלי האתר</p><h2>הרשאות Gmail</h2><form className="add-admin" onSubmit={addAdmin}><label>הוספת מנהל לפי אימייל<input required type="email" placeholder="name@gmail.com" value={newAdmin} onChange={e=>setNewAdmin(e.target.value)}/></label><button type="submit">הוספה</button></form><div className="admin-list">{admins.map(a=><div key={a.email}><span>{a.email}</span><button type="button" onClick={()=>removeAdmin(a.email)} aria-label={`הסרת ${a.email}`}>הסרה</button></div>)}</div></div>}

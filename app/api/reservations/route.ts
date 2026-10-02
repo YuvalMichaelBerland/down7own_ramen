@@ -15,7 +15,10 @@ export async function GET(request: Request) {
     const token = bearer(request);
     if (!token) return Response.json({ error: 'התחברו כדי לראות את ההזמנות שלכם' }, { status: 401 });
     const user = await verifySession(token); await ensureSchema(); const db = database();
-    const rows = await db.prepare(`SELECT r.id, r.slot_id, r.party_size, r.status, r.notes, r.guest_name, r.guest_phone, s.starts_at, s.ends_at FROM reservations r JOIN slots s ON s.id = r.slot_id WHERE r.google_subject = ? AND r.status = 'confirmed' ORDER BY s.starts_at ASC`).bind(user.sub).all<ReservationRow>();
+    // A reservation stops being "active" for the guest once its slot's time has
+    // passed, or the chef has closed/completed that service — either way it should
+    // disappear from "my reservations" instead of lingering as still-editable.
+    const rows = await db.prepare(`SELECT r.id, r.slot_id, r.party_size, r.status, r.notes, r.guest_name, r.guest_phone, s.starts_at, s.ends_at FROM reservations r JOIN slots s ON s.id = r.slot_id WHERE r.google_subject = ? AND r.status = 'confirmed' AND s.is_open = 1 AND s.ends_at >= ? ORDER BY s.starts_at ASC`).bind(user.sub, new Date().toISOString()).all<ReservationRow>();
     const prefRows = rows.results.length ? await db.prepare(`SELECT reservation_id, seat_index, preference FROM reservation_preferences WHERE reservation_id IN (${rows.results.map(() => '?').join(',')}) ORDER BY seat_index ASC`).bind(...rows.results.map((r) => r.id)).all<PreferenceRow>() : { results: [] as PreferenceRow[] };
     const prefsByReservation = new Map<string, string[]>();
     for (const p of prefRows.results) { const list = prefsByReservation.get(p.reservation_id) ?? []; list.push(p.preference); prefsByReservation.set(p.reservation_id, list); }
@@ -60,9 +63,9 @@ export async function PATCH(request: Request) {
     if (body.guestName !== undefined && !validName(body.guestName)) return Response.json({ error:'נא למלא שם מלא' }, { status:400 });
     if (body.guestPhone !== undefined && !validPhone(body.guestPhone)) return Response.json({ error:'נא למלא מספר טלפון תקין' }, { status:400 });
     await ensureSchema(); const db = database();
-    const reservation = await db.prepare(`SELECT r.id, r.slot_id, r.party_size, r.status, s.ends_at, s.capacity FROM reservations r JOIN slots s ON s.id = r.slot_id WHERE r.id = ? AND r.google_subject = ?`).bind(body.id, user.sub).first<{ id:string; slot_id:string; party_size:number; status:string; ends_at:string; capacity:number }>();
+    const reservation = await db.prepare(`SELECT r.id, r.slot_id, r.party_size, r.status, s.ends_at, s.is_open, s.capacity FROM reservations r JOIN slots s ON s.id = r.slot_id WHERE r.id = ? AND r.google_subject = ?`).bind(body.id, user.sub).first<{ id:string; slot_id:string; party_size:number; status:string; ends_at:string; is_open:number; capacity:number }>();
     if (!reservation || reservation.status !== 'confirmed') return Response.json({ error:'ההזמנה לא נמצאה' }, { status:404 });
-    if (reservation.ends_at < new Date().toISOString()) return Response.json({ error:'לא ניתן לערוך הזמנה שחלפה' }, { status:409 });
+    if (reservation.ends_at < new Date().toISOString() || !reservation.is_open) return Response.json({ error:'לא ניתן לערוך הזמנה שהסתיימה' }, { status:409 });
     const targetPartySize = body.partySize ?? reservation.party_size;
     let preferences = body.preferences;
     if (preferences !== undefined && preferences.length !== targetPartySize) return Response.json({ error:'מספר ההעדפות חייב להתאים למספר הסועדים' }, { status:400 });
@@ -93,6 +96,9 @@ export async function DELETE(request: Request) {
     const body = await request.json() as { id?:string };
     if (!body.id) return Response.json({ error:'חסר מזהה הזמנה' }, { status:400 });
     await ensureSchema(); const db = database();
+    const reservation = await db.prepare(`SELECT r.id, s.ends_at, s.is_open FROM reservations r JOIN slots s ON s.id = r.slot_id WHERE r.id = ? AND r.google_subject = ? AND r.status = 'confirmed'`).bind(body.id, user.sub).first<{ id:string; ends_at:string; is_open:number }>();
+    if (!reservation) return Response.json({ error:'ההזמנה לא נמצאה' }, { status:404 });
+    if (reservation.ends_at < new Date().toISOString() || !reservation.is_open) return Response.json({ error:'לא ניתן לבטל הזמנה שהסתיימה' }, { status:409 });
     await db.prepare(`UPDATE reservations SET status = 'cancelled' WHERE id = ? AND google_subject = ? AND status = 'confirmed'`).bind(body.id, user.sub).run();
     return Response.json({ cancelled: true });
   } catch (error) { const msg = error instanceof Error ? error.message : 'Could not cancel reservation'; return Response.json({ error:msg }, { status:401 }); }
