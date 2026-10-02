@@ -10,7 +10,8 @@ type PlannedSlot={key:string;startTime:string;durationMinutes:number;capacity:nu
 type MenuOption={id:string;label:string};
 type ReservationRow={id:string;guestName:string;guestEmail:string;guestPhone:string;partySize:number;preferences:string[];notes:string;startsAt:string};
 type Thread={subject:string;guestName:string;guestEmail:string;lastAt:string;unread:number};
-type ServiceDay={dayKey:string;startsAt:string;endsAt:string;capacity:number;reserved:number;slotCount:number;actualAttendees?:number;completedAt?:string;reservations:ReservationRow[]};
+type SlotInfo={startsAt:string;endsAt:string;capacity:number;reserved:number};
+type ServiceDay={dayKey:string;startsAt:string;endsAt:string;capacity:number;reserved:number;slotCount:number;actualAttendees?:number;completedAt?:string;reservations:ReservationRow[];slots:SlotInfo[]};
 const newSlot=(startTime='19:00',capacity=10,durationMinutes=30):PlannedSlot=>({key:crypto.randomUUID(),startTime,durationMinutes,capacity});
 const fmtDate=(iso:string)=>new Intl.DateTimeFormat('he-IL',{weekday:'short',day:'numeric',month:'short'}).format(new Date(iso));
 const fmtTime=(iso:string)=>new Intl.DateTimeFormat('he-IL',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
@@ -24,10 +25,14 @@ function buildWeekCsv(days:ServiceDay[],menuOptions:MenuOption[]){
     lines.push(['שעה','שם מלא','טלפון',...menuOptions.map(o=>o.label),'הערה'].map(csvEscape).join(','));
     const sorted=[...day.reservations].sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
     const totals=menuOptions.map(()=>0);
-    for(const r of sorted){
-      const counts=menuOptions.map(o=>r.preferences.filter(p=>p===o.id).length);
-      counts.forEach((c,i)=>{totals[i]+=c;});
-      lines.push([fmtTime(r.startsAt),r.guestName,r.guestPhone,...counts.map(String),r.notes||''].map(csvEscape).join(','));
+    for(const slot of [...day.slots].sort((a,b)=>a.startsAt.localeCompare(b.startsAt))){
+      const slotReservations=sorted.filter(r=>r.startsAt===slot.startsAt);
+      if(!slotReservations.length){lines.push([fmtTime(slot.startsAt),'','',...menuOptions.map(()=>''),`פנוי (${slot.capacity})`].map(csvEscape).join(','));continue;}
+      for(const r of slotReservations){
+        const counts=menuOptions.map(o=>r.preferences.filter(p=>p===o.id).length);
+        counts.forEach((c,i)=>{totals[i]+=c;});
+        lines.push([fmtTime(r.startsAt),r.guestName,r.guestPhone,...counts.map(String),r.notes||''].map(csvEscape).join(','));
+      }
     }
     lines.push(['','סה״כ',String(sorted.reduce((s,r)=>s+r.partySize,0)),...totals.map(String),''].map(csvEscape).join(','));
     lines.push('');
@@ -56,6 +61,7 @@ export default function Admin(){
   const [threads,setThreads]=useState<Thread[]>([]);
   const [chatSubject,setChatSubject]=useState<string>();
   const [weekOffset,setWeekOffset]=useState(0);
+  const [weekAutoSet,setWeekAutoSet]=useState(false);
   const loadMenuOptions=useCallback(async()=>{const r=await fetch('/api/menu-options');if(r.ok){const d=await r.json() as {options:MenuOption[]};setMenuOptions(d.options||[]);}},[]);
   useEffect(()=>{loadMenuOptions();},[loadMenuOptions]);
   const loadThreads=useCallback(async()=>{const r=await fetch('/api/admin/messages',{headers:authHeaders()});if(r.ok){const d=await r.json() as {threads:Thread[]};setThreads(d.threads||[]);}},[authHeaders]);
@@ -79,6 +85,7 @@ export default function Admin(){
   async function updateReservation(id:string,patch:Partial<Pick<ReservationRow,'guestName'|'guestEmail'|'guestPhone'|'partySize'|'preferences'|'notes'>>){const r=await fetch('/api/admin/reservations',{method:'PATCH',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({id,...patch})});const d=await r.json() as {error?:string};if(!r.ok){setMessage(d.error||'לא הצלחנו לעדכן את ההזמנה');return;}await loadPublished();}
   async function cancelReservation(id:string){if(!window.confirm('לבטל את ההזמנה הזו?'))return;const r=await fetch('/api/admin/reservations',{method:'DELETE',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({id})});const d=await r.json() as {error?:string};if(!r.ok){setMessage(d.error||'לא הצלחנו לבטל את ההזמנה');return;}await loadPublished();}
   const totalActual=history.reduce((sum,d)=>sum+(d.actualAttendees||0),0),totalReserved=history.reduce((sum,d)=>sum+d.reserved,0);
+  useEffect(()=>{if(weekAutoSet||!published.length)return;const earliest=[...published].sort((a,b)=>a.dayKey.localeCompare(b.dayKey))[0];const diffWeeks=Math.round((startOfWeek(parseDayKey(earliest.dayKey)).getTime()-startOfWeek(new Date()).getTime())/(7*86400000));setWeekOffset(diffWeeks);setWeekAutoSet(true);},[published,weekAutoSet]);
   const weekStart=useMemo(()=>{const s=startOfWeek(new Date());s.setDate(s.getDate()+weekOffset*7);return s;},[weekOffset]);
   const weekDays=useMemo(()=>{const weekStartTime=weekStart.getTime();return [...published,...history].filter(d=>startOfWeek(parseDayKey(d.dayKey)).getTime()===weekStartTime).sort((a,b)=>a.dayKey.localeCompare(b.dayKey));},[published,history,weekStart]);
   const weekEnd=useMemo(()=>{const e=new Date(weekStart);e.setDate(e.getDate()+6);return e;},[weekStart]);
@@ -87,7 +94,7 @@ export default function Admin(){
   return <main className="admin-page">
     <nav className="nav"><Link className="brand" href="/"><img src="/ramen-logo.png" alt="Down7own Ramen"/><span>DOWN7OWN RAMEN</span></Link><Link className="chef-link" href="/">לתצוגת אורחים</Link></nav>
     <section className="admin-wrap">
-      <div className="admin-heading"><p className="eyebrow"><span/>ניהול מסעדה</p><h1>פתיחת זמני הזמנה</h1><p>צרו סדרת שעות במהירות, ואז התאימו כל משבצת בנפרד — שעה, משך ישיבה ומספר אורחים.</p></div>
+      <div className="admin-heading"><div><p className="eyebrow"><span/>ניהול מסעדה</p><h1>פתיחת זמני הזמנה</h1></div><p>צרו סדרת שעות במהירות, ואז התאימו כל משבצת בנפרד — שעה, משך ישיבה ומספר אורחים.</p></div>
       <div className="admin-column">
         <div className="admin-card slot-builder">
           {platformAdmin===null?<p className="empty-copy">בודק הרשאת מנהל…</p>:!authorized?<><p className="kicker">כניסת מנהלים</p><h2>התחברות עם Google</h2><p className="empty-copy">מנהלים מורשים יכולים להתחבר עם חשבון Gmail ולפתוח מועדים.</p><GoogleSignIn onCredential={signIn}/></>:<form onSubmit={create}>
@@ -120,23 +127,27 @@ export default function Admin(){
                   <form className="complete-day" onSubmit={e=>completeDay(day,e)}><label>הגיעו בפועל<input name="actualAttendees" type="number" min="0" max="1000" defaultValue={day.reserved}/></label><button type="submit">סימון כהושלם</button></form>
                 </>:<button type="button" className="history-delete" onClick={()=>deleteHistory(day)}>מחיקה לצמיתות</button>}
               </div>
-              {sorted.length?<div className="table-scroll"><table className="week-table"><thead><tr><th>שעה</th><th>שם</th><th>טלפון</th>{menuOptions.map(o=><th key={o.id}>{o.label}</th>)}<th>הערה</th><th/></tr></thead><tbody>
-                {sorted.map(r=><Fragment key={r.id}>
-                  <tr>
-                    <td>{fmtTime(r.startsAt)}</td>
-                    <td><input defaultValue={r.guestName} onBlur={e=>e.target.value.trim()&&e.target.value!==r.guestName&&updateReservation(r.id,{guestName:e.target.value})}/></td>
-                    <td><input defaultValue={r.guestPhone} onBlur={e=>e.target.value!==r.guestPhone&&updateReservation(r.id,{guestPhone:e.target.value})}/></td>
-                    {menuOptions.map(o=><td key={o.id}>{r.preferences.filter(p=>p===o.id).length||''}</td>)}
-                    <td><input defaultValue={r.notes} onBlur={e=>e.target.value!==r.notes&&updateReservation(r.id,{notes:e.target.value})}/></td>
-                    <td className="row-actions"><button type="button" onClick={()=>setDetailsOpen(detailsOpen===r.id?undefined:r.id)}>פרטים</button><button type="button" onClick={()=>cancelReservation(r.id)}>ביטול</button></td>
-                  </tr>
-                  {detailsOpen===r.id&&<tr><td colSpan={menuOptions.length+5}><div className="row-details">
-                    <label>סועדים<select value={r.partySize} onChange={e=>updateReservation(r.id,{partySize:Number(e.target.value)})}>{Array.from({length:10},(_,i)=><option key={i+1}>{i+1}</option>)}</select></label>
-                    {r.preferences.map((p,i)=><label key={i}>סועד {i+1}<select value={p} onChange={e=>updateReservation(r.id,{preferences:r.preferences.map((pp,idx)=>idx===i?e.target.value:pp)})}><option value="none">ללא העדפה</option>{menuOptions.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>)}
-                  </div></td></tr>}
-                </Fragment>)}
+              {day.slots.length?<div className="table-scroll"><table className="week-table"><thead><tr><th>שעה</th><th>שם</th><th>טלפון</th>{menuOptions.map(o=><th key={o.id}>{o.label}</th>)}<th>הערה</th><th/></tr></thead><tbody>
+                {[...day.slots].sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).map(slot=>{
+                  const slotReservations=sorted.filter(r=>r.startsAt===slot.startsAt);
+                  if(!slotReservations.length)return <tr key={slot.startsAt} className="empty-slot-row"><td>{fmtTime(slot.startsAt)}</td><td colSpan={menuOptions.length+4} className="empty-copy">פנוי · {slot.capacity} מקומות</td></tr>;
+                  return slotReservations.map(r=><Fragment key={r.id}>
+                    <tr>
+                      <td>{fmtTime(r.startsAt)}</td>
+                      <td><input defaultValue={r.guestName} onBlur={e=>e.target.value.trim()&&e.target.value!==r.guestName&&updateReservation(r.id,{guestName:e.target.value})}/></td>
+                      <td><input defaultValue={r.guestPhone} onBlur={e=>e.target.value!==r.guestPhone&&updateReservation(r.id,{guestPhone:e.target.value})}/></td>
+                      {menuOptions.map(o=><td key={o.id}>{r.preferences.filter(p=>p===o.id).length||''}</td>)}
+                      <td><input defaultValue={r.notes} onBlur={e=>e.target.value!==r.notes&&updateReservation(r.id,{notes:e.target.value})}/></td>
+                      <td className="row-actions"><button type="button" onClick={()=>setDetailsOpen(detailsOpen===r.id?undefined:r.id)}>פרטים</button><button type="button" onClick={()=>cancelReservation(r.id)}>ביטול</button></td>
+                    </tr>
+                    {detailsOpen===r.id&&<tr><td colSpan={menuOptions.length+5}><div className="row-details">
+                      <label>סועדים<select value={r.partySize} onChange={e=>updateReservation(r.id,{partySize:Number(e.target.value)})}>{Array.from({length:10},(_,i)=><option key={i+1}>{i+1}</option>)}</select></label>
+                      {r.preferences.map((p,i)=><label key={i}>סועד {i+1}<select value={p} onChange={e=>updateReservation(r.id,{preferences:r.preferences.map((pp,idx)=>idx===i?e.target.value:pp)})}><option value="none">ללא העדפה</option>{menuOptions.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>)}
+                    </div></td></tr>}
+                  </Fragment>);
+                })}
                 <tr className="week-total-row"><td colSpan={3}>סה״כ · {sorted.reduce((s,r)=>s+r.partySize,0)} סועדים</td>{totals.map((t,i)=><td key={i}>{t}</td>)}<td/><td/></tr>
-              </tbody></table></div>:<p className="empty-copy">אין הזמנות ליום זה.</p>}
+              </tbody></table></div>:<p className="empty-copy">אין משבצות ליום זה.</p>}
             </div>;
           })}</div>:<p className="empty-copy">אין ארוחות מתוכננות לשבוע זה.</p>}
         </div>}

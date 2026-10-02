@@ -110,13 +110,15 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 @keyframes toast-in { from { transform:translateY(12px); opacity:0; } to { transform:translateY(0); opacity:1; } }
 
 /* admin */
-.admin-page .nav { max-width:1040px; }
-.admin-wrap { max-width:1040px; margin:0 auto; padding:60px 28px 100px; display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:start; }
-.admin-heading h1 { text-align:start; margin:20px 0 20px; font-size:clamp(38px,4.6vw,58px); max-width:420px; font-weight:400; line-height:1.1; }
+.admin-page .nav { max-width:1320px; }
+.admin-wrap { max-width:1320px; margin:0 auto; padding:60px 28px 100px; display:flex; flex-direction:column; gap:40px; }
+.admin-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+.admin-heading h1 { text-align:start; margin:0; font-size:clamp(32px,3.6vw,46px); font-weight:400; line-height:1.1; }
 .admin-heading .eyebrow { justify-content:flex-start; }
-.admin-heading>p:last-child { color:var(--muted); max-width:380px; line-height:1.75; font-size:14px; }
+.admin-heading>p:last-child { color:var(--muted); max-width:460px; line-height:1.6; font-size:13px; margin:0; }
 .admin-card { background:var(--paper-card); border:1px solid var(--line); box-shadow:0 1px 2px rgba(34,31,26,.04), 0 20px 40px -30px rgba(34,31,26,.3); padding:36px; min-height:0; }
 .admin-column { display:flex; flex-direction:column; gap:26px; }
+.admin-column>.admin-card:not(.week-card) { max-width:680px; }
 .admin-card .kicker { color:var(--muted); }
 .admin-card form { display:flex; flex-direction:column; gap:18px; }
 .admin-card input { border:1px solid var(--line); background:white; min-height:44px; padding:0 13px; font:inherit; font-size:13px; }
@@ -162,7 +164,8 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .week-nav button { border:1px solid var(--line); background:transparent; min-height:32px; padding:0 12px; cursor:pointer; font-size:11px; font-weight:600; color:var(--muted); }
 .week-nav span { font-weight:700; }
 .week-days { display:flex; gap:16px; overflow-x:auto; padding-bottom:4px; }
-.week-day-block { flex:0 0 auto; min-width:360px; border:1px solid var(--line); padding:14px; }
+.week-day-block { flex:0 0 auto; min-width:420px; border:1px solid var(--line); padding:14px; }
+.empty-slot-row td { color:var(--muted); }
 .week-day-head { margin-bottom:10px; }
 .week-day-head h3 { margin:0; font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; }
 .week-day-sub { color:var(--muted); font-size:10px; }
@@ -204,8 +207,10 @@ footer { max-width:1040px; margin:auto; border-top:1px solid var(--line); paddin
   .details { margin-top:28px; }
   .slots { grid-template-columns:repeat(2,1fr); }
   footer { margin:0 14px; gap:18px; }
-  .admin-wrap { grid-template-columns:1fr; gap:32px; padding:40px 18px 70px; }
-  .admin-heading h1 { font-size:38px; }
+  .admin-wrap { gap:32px; padding:40px 18px 70px; }
+  .admin-heading { flex-direction:column; align-items:flex-start; gap:12px; }
+  .admin-heading h1 { font-size:32px; }
+  .admin-column>.admin-card:not(.week-card) { max-width:none; }
   .admin-card { padding:24px 20px; }
   .add-admin { grid-template-columns:1fr!important; }
   .confirmation { padding:32px 22px; }
