@@ -57,7 +57,7 @@ export default function Home(){
         {dateSlots.length?<div className="slots" role="radiogroup" aria-label="שעת הזמנה">{dateSlots.map(s=><button key={s.id} type="button" role="radio" aria-checked={selected===s.id} disabled={s.remaining===0} className={selected===s.id?'slot selected':'slot'} onClick={()=>setSelected(s.id)}><strong>{fmtTime(s.startsAt)}</strong><span>{s.remaining===0?'מלא':'פנוי'}</span></button>)}</div>:<p className="empty-copy">השף עדיין לא פתח מועד חדש להזמנות.</p>}
         {selectedSlot&&<div className="reserve-flow">
           <label>מספר סועדים <select value={partySize} onChange={e=>setPartySizeAndPreferences(Number(e.target.value))}>{Array.from({length:Math.min(10,selectedSlot.remaining)},(_,i)=><option key={i+1}>{i+1}</option>)}</select></label>
-          <label>שם מלא <input required value={guestName} maxLength={80} onChange={e=>setGuestName(e.target.value)} placeholder="שם ושם משפחה"/></label>
+          <label>שם מלא <input required value={guestName} maxLength={80} onChange={e=>setGuestName(e.target.value)} placeholder="שם ושם משפחה"/><span className="field-hint">שדה חובה</span></label>
           <label>טלפון <input required type="tel" value={guestPhone} maxLength={20} onChange={e=>setGuestPhone(e.target.value)} placeholder="050-1234567"/></label>
           <div className="seat-preferences">{preferences.map((p,i)=><label key={i}>העדפת סועד {i+1} <select value={p} onChange={e=>setSeatPreference(i,e.target.value)}><option value="none">ללא העדפה</option>{menuOptions.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>)}</div>
           <label>הערה לשף (לא חובה) <textarea value={notes} maxLength={500} onChange={e=>setNotes(e.target.value)} placeholder="אלרגיות, בקשות מיוחדות…"/></label>
