@@ -137,41 +137,18 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .planned-slot input,.planned-slot select { width:100%; min-width:0; }
 .planned-slot button { width:34px; height:34px; border:1px solid var(--line); border-radius:50%; background:transparent; color:var(--red); font-size:19px; cursor:pointer; }
 .add-slot { border:1px dashed var(--line); background:transparent; min-height:44px; cursor:pointer; font-weight:600; font-size:13px; }
-.published-card,.history-card,.reservations-card,.admins-card { min-height:0; }
-.published-list { border-top:1px solid var(--line); }
-.published-day { padding:16px 0; border-bottom:1px solid var(--line); }
-.day-summary { display:flex; align-items:center; justify-content:space-between; gap:18px; }
-.day-summary>div { display:flex; flex-direction:column; gap:4px; }
-.day-summary strong { font-size:13px; }
-.day-summary span { color:var(--muted); font-size:11px; }
-.day-summary>button { border:0; background:transparent; color:var(--red); cursor:pointer; font-size:12px; font-weight:600; }
-.complete-day { margin-top:13px; display:grid!important; grid-template-columns:1fr auto; align-items:end; gap:9px!important; padding:12px; background:#efe8d8; }
+.admins-card { min-height:0; }
+.complete-day { display:grid!important; grid-template-columns:1fr auto; align-items:end; gap:9px!important; padding:12px; background:#efe8d8; }
 .complete-day label { display:grid; grid-template-columns:1fr 78px; align-items:center; }
 .complete-day input { min-height:38px; width:78px; }
-.complete-day button,.history-list button { min-height:38px; border:0; padding:0 14px; background:var(--ink); color:var(--paper); cursor:pointer; font-size:11px; font-weight:600; }
-.dashboard-stats { display:grid; grid-template-columns:repeat(3,1fr); margin:18px 0 24px; border:1px solid var(--line); }
+.complete-day button { min-height:38px; border:0; padding:0 14px; background:var(--ink); color:var(--paper); cursor:pointer; font-size:11px; font-weight:600; }
+.dashboard-stats { display:grid; grid-template-columns:repeat(3,1fr); margin:18px 0 20px; border:1px solid var(--line); }
 .dashboard-stats>div { display:flex; flex-direction:column; gap:3px; padding:15px 8px; text-align:center; border-inline-end:1px solid var(--line); }
 .dashboard-stats>div:last-child { border-inline-end:0; }
 .dashboard-stats strong { font-family:var(--font-serif),serif; font-size:26px; font-weight:400; }
 .dashboard-stats span { color:var(--muted); font-size:10px; }
-.history-list { border-top:1px solid var(--line); }
-.history-list>div { display:grid; grid-template-columns:1fr auto auto; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid var(--line); }
-.history-list>div>div { display:flex; flex-direction:column; gap:3px; }
-.history-list span { color:var(--muted); font-size:11px; }
-.history-list form { display:flex; flex-direction:row; gap:6px; }
-.history-list input { width:64px; min-height:38px; }
-.history-delete { background:transparent!important; color:var(--red)!important; border:1px solid var(--line)!important; }
-.reservations-day { padding:16px 0; border-top:1px solid var(--line); }
-.reservations-day:first-of-type { border-top:0; padding-top:0; }
+.history-delete { background:transparent!important; color:var(--red)!important; border:1px solid var(--line)!important; min-height:38px; padding:0 14px; cursor:pointer; font-size:11px; font-weight:600; }
 .table-scroll { overflow-x:auto; margin-top:10px; }
-.reservations-table { width:100%; min-width:640px; border-collapse:collapse; font-size:12px; }
-.reservations-table th { text-align:start; color:var(--muted); font-weight:600; padding:0 10px 8px 0; white-space:nowrap; }
-.reservations-table td { padding:8px 10px 8px 0; border-top:1px solid var(--line); vertical-align:middle; }
-.reservations-table input { width:100%; min-width:160px; border:1px solid var(--line); background:white; min-height:32px; padding:0 8px; font:inherit; }
-.reservations-table select { border:1px solid var(--line); background:white; min-height:32px; padding:0 6px; font:inherit; }
-.reservations-table .notes-cell { max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.reservations-table .row-actions { display:flex; gap:6px; white-space:nowrap; }
-.reservations-table button { border:1px solid var(--ink); background:transparent; min-height:32px; padding:0 10px; cursor:pointer; font-size:11px; font-weight:600; white-space:nowrap; }
 .row-details { display:flex; flex-wrap:wrap; gap:14px; padding:14px 0; align-items:flex-end; }
 .row-details label { display:flex; flex-direction:column; gap:5px; font-size:10px; font-weight:700; color:var(--muted); }
 .row-details select,.row-details input { border:1px solid var(--line); background:white; min-height:34px; padding:0 8px; font:inherit; font-size:12px; }
@@ -185,13 +162,21 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .week-nav button { border:1px solid var(--line); background:transparent; min-height:32px; padding:0 12px; cursor:pointer; font-size:11px; font-weight:600; color:var(--muted); }
 .week-nav span { font-weight:700; }
 .week-days { display:flex; gap:16px; overflow-x:auto; padding-bottom:4px; }
-.week-day-block { flex:0 0 auto; min-width:300px; border:1px solid var(--line); padding:14px; }
-.week-day-block h3 { margin:0 0 10px; font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; }
+.week-day-block { flex:0 0 auto; min-width:360px; border:1px solid var(--line); padding:14px; }
+.week-day-head { margin-bottom:10px; }
+.week-day-head h3 { margin:0; font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; }
+.week-day-sub { color:var(--muted); font-size:10px; }
 .day-status { font-size:9px; font-weight:700; letter-spacing:.06em; color:#6d8f63; border:1px solid #6d8f63; padding:2px 6px; }
-.week-table { width:100%; border-collapse:collapse; font-size:11px; }
+.week-day-actions { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.week-day-actions>button { min-height:34px; border:1px solid var(--line); background:transparent; padding:0 12px; cursor:pointer; font-size:11px; font-weight:600; color:var(--red); }
+.week-day-actions .complete-day { flex:1; }
+.week-table { width:100%; min-width:520px; border-collapse:collapse; font-size:11px; }
 .week-table th { text-align:start; color:var(--muted); font-weight:600; padding:0 6px 6px 0; white-space:nowrap; }
-.week-table td { padding:5px 6px 5px 0; border-top:1px solid var(--line); white-space:nowrap; }
-.week-total-row td { font-weight:700; border-top:2px solid var(--ink); }
+.week-table td { padding:5px 6px 5px 0; border-top:1px solid var(--line); white-space:nowrap; vertical-align:middle; }
+.week-table input,.week-table select { border:1px solid var(--line); background:white; min-height:30px; padding:0 6px; font:inherit; font-size:11px; width:100%; min-width:90px; }
+.week-table .row-actions { display:flex; gap:6px; white-space:nowrap; }
+.week-table .row-actions button { border:1px solid var(--ink); background:transparent; min-height:30px; padding:0 8px; cursor:pointer; font-size:10px; font-weight:600; white-space:nowrap; }
+.week-total-row td { font-weight:700; border-top:2px solid var(--ink); white-space:nowrap; }
 
 /* messages / threads */
 .thread-hint { font-size:11px; margin:-14px 0 14px; }
@@ -226,5 +211,5 @@ footer { max-width:1040px; margin:auto; border-top:1px solid var(--line); paddin
   .confirmation { padding:32px 22px; }
   .complete-day { grid-template-columns:1fr; }
   .complete-day button { width:100%; }
-  .history-list>div { grid-template-columns:1fr; justify-items:start; }
+  .week-day-actions { flex-direction:column; align-items:stretch; }
 }

@@ -98,30 +98,45 @@ export default function Admin(){
             <button className="add-slot" type="button" onClick={()=>setSlots(current=>[...current,newSlot(current.at(-1)?.startTime||'19:00',current.at(-1)?.capacity||10,current.at(-1)?.durationMinutes||30)])}>+ הוספת משבצת ידנית</button><button className="reserve" disabled={busy||!slots.length}>{busy?'מפרסם…':'פרסום המשבצות'}<span>←</span></button>
           </form>}
         </div>
-        {authorized&&<div className="admin-card published-card"><p className="kicker">ארוחות שפורסמו</p><h2>מועדים פתוחים</h2>{published.length?<div className="published-list">{published.map(day=><div className="published-day" key={day.dayKey}><div className="day-summary"><div><strong>{fmtDate(day.startsAt)}</strong><span>{fmtTime(day.startsAt)}–{fmtTime(day.endsAt)} · {day.reserved}/{day.capacity} מוזמנים · {day.slotCount} משבצות</span></div><button type="button" onClick={()=>deleteDay(day)}>מחיקה</button></div><form className="complete-day" onSubmit={e=>completeDay(day,e)}><label>כמה הגיעו בפועל?<input name="actualAttendees" type="number" min="0" max="1000" defaultValue={day.reserved}/></label><button type="submit">סימון כהושלם</button></form></div>)}</div>:<p className="empty-copy">אין כרגע מועדים פתוחים.</p>}</div>}
-        {authorized&&<div className="admin-card history-card"><p className="kicker">נתוני עבר</p><h2>היסטוריית ארוחות</h2><div className="dashboard-stats"><div><strong>{history.length}</strong><span>ארוחות</span></div><div><strong>{totalReserved}</strong><span>הזמנות</span></div><div><strong>{totalActual}</strong><span>הגיעו בפועל</span></div></div>{history.length?<div className="history-list">{history.map(day=><div key={day.dayKey}><div><strong>{fmtDate(day.startsAt)}</strong><span>{day.reserved} הוזמנו · {day.capacity} מקומות</span></div><form onSubmit={e=>completeDay(day,e)}><input aria-label="מספר שהגיעו בפועל" name="actualAttendees" type="number" min="0" max="1000" defaultValue={day.actualAttendees}/><button type="submit">עדכון</button></form><button type="button" className="history-delete" onClick={()=>deleteHistory(day)}>מחיקה לצמיתות</button></div>)}</div>:<p className="empty-copy">הנתונים יופיעו כאן אחרי סימון הארוחה הראשונה כהושלמה.</p>}</div>}
-        {authorized&&<div className="admin-card reservations-card"><p className="kicker">הזמנות לפי תאריך</p><h2>אורחים</h2>{[...published,...history].length?[...published,...history].sort((a,b)=>b.startsAt.localeCompare(a.startsAt)).map(day=><div className="reservations-day" key={day.dayKey}><strong>{fmtDate(day.startsAt)}</strong>{day.reservations.length?<div className="table-scroll"><table className="reservations-table"><thead><tr><th>שם</th><th>טלפון</th><th>אימייל</th><th>סועדים</th><th>העדפות</th><th>הערה</th><th/></tr></thead><tbody>{day.reservations.map(r=><Fragment key={r.id}>
-          <tr><td><input defaultValue={r.guestName} onBlur={e=>e.target.value.trim()&&e.target.value!==r.guestName&&updateReservation(r.id,{guestName:e.target.value})}/></td><td><input defaultValue={r.guestPhone} onBlur={e=>e.target.value!==r.guestPhone&&updateReservation(r.id,{guestPhone:e.target.value})}/></td><td><input defaultValue={r.guestEmail} onBlur={e=>e.target.value!==r.guestEmail&&updateReservation(r.id,{guestEmail:e.target.value})}/></td><td><select defaultValue={r.partySize} onChange={e=>updateReservation(r.id,{partySize:Number(e.target.value)})}>{Array.from({length:10},(_,i)=><option key={i+1}>{i+1}</option>)}</select></td><td>{r.preferences.map(p=>menuOptions.find(o=>o.id===p)?.label||'ללא').join(', ')}</td><td className="notes-cell">{r.notes||'—'}</td><td className="row-actions"><button type="button" onClick={()=>setDetailsOpen(detailsOpen===r.id?undefined:r.id)}>פרטים</button><button type="button" onClick={()=>cancelReservation(r.id)}>ביטול</button></td></tr>
-          {detailsOpen===r.id&&<tr><td colSpan={7}><div className="row-details">
-            {r.preferences.map((p,i)=><label key={i}>סועד {i+1}<select value={p} onChange={e=>updateReservation(r.id,{preferences:r.preferences.map((pp,idx)=>idx===i?e.target.value:pp)})}><option value="none">ללא העדפה</option>{menuOptions.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>)}
-            <label>הערה<input defaultValue={r.notes} onBlur={e=>e.target.value!==r.notes&&updateReservation(r.id,{notes:e.target.value})}/></label>
-          </div></td></tr>}
-        </Fragment>)}</tbody></table></div>:<p className="empty-copy">אין הזמנות ליום זה.</p>}</div>):<p className="empty-copy">אין עדיין הזמנות.</p>}</div>}
         {authorized&&<div className="admin-card week-card">
           <div className="week-header">
             <div><p className="kicker">דוח שבועי</p><h2>תצוגת שבוע</h2></div>
             <button type="button" className="export-button" onClick={exportWeek} disabled={!weekDays.length}>ייצוא לאקסל</button>
           </div>
+          <div className="dashboard-stats"><div><strong>{history.length}</strong><span>ארוחות שהושלמו</span></div><div><strong>{totalReserved}</strong><span>הזמנות</span></div><div><strong>{totalActual}</strong><span>הגיעו בפועל</span></div></div>
           <div className="week-nav"><button type="button" onClick={()=>setWeekOffset(w=>w-1)}>‹ קודם</button><span>{weekRangeLabel}</span><button type="button" onClick={()=>setWeekOffset(w=>w+1)}>הבא ›</button>{weekOffset!==0&&<button type="button" onClick={()=>setWeekOffset(0)}>השבוע</button>}</div>
           {weekDays.length?<div className="week-days">{weekDays.map(day=>{
             const sorted=[...day.reservations].sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
             const totals=menuOptions.map(o=>sorted.reduce((sum,r)=>sum+r.preferences.filter(p=>p===o.id).length,0));
+            const isOpen=!day.completedAt;
             return <div className="week-day-block" key={day.dayKey}>
-              <h3>{fmtDate(day.startsAt)}{day.completedAt&&<span className="day-status">הושלם</span>}</h3>
-              {sorted.length?<table className="week-table"><thead><tr><th>שעה</th><th>שם</th><th>טלפון</th>{menuOptions.map(o=><th key={o.id}>{o.label}</th>)}<th>הערה</th></tr></thead><tbody>
-                {sorted.map(r=><tr key={r.id}><td>{fmtTime(r.startsAt)}</td><td>{r.guestName}</td><td>{r.guestPhone}</td>{menuOptions.map(o=><td key={o.id}>{r.preferences.filter(p=>p===o.id).length||''}</td>)}<td>{r.notes||''}</td></tr>)}
-                <tr className="week-total-row"><td colSpan={3}>סה״כ · {sorted.reduce((s,r)=>s+r.partySize,0)} סועדים</td>{totals.map((t,i)=><td key={i}>{t}</td>)}<td/></tr>
-              </tbody></table>:<p className="empty-copy">אין הזמנות ליום זה.</p>}
+              <div className="week-day-head">
+                <h3>{fmtDate(day.startsAt)}{!isOpen&&<span className="day-status">הושלם</span>}</h3>
+                <span className="week-day-sub">{fmtTime(day.startsAt)}–{fmtTime(day.endsAt)} · {day.reserved}/{day.capacity} מוזמנים{!isOpen&&day.actualAttendees!==undefined?` · הגיעו בפועל: ${day.actualAttendees}`:''}</span>
+              </div>
+              <div className="week-day-actions">
+                {isOpen?<>
+                  <button type="button" onClick={()=>deleteDay(day)}>מחיקת יום</button>
+                  <form className="complete-day" onSubmit={e=>completeDay(day,e)}><label>הגיעו בפועל<input name="actualAttendees" type="number" min="0" max="1000" defaultValue={day.reserved}/></label><button type="submit">סימון כהושלם</button></form>
+                </>:<button type="button" className="history-delete" onClick={()=>deleteHistory(day)}>מחיקה לצמיתות</button>}
+              </div>
+              {sorted.length?<div className="table-scroll"><table className="week-table"><thead><tr><th>שעה</th><th>שם</th><th>טלפון</th>{menuOptions.map(o=><th key={o.id}>{o.label}</th>)}<th>הערה</th><th/></tr></thead><tbody>
+                {sorted.map(r=><Fragment key={r.id}>
+                  <tr>
+                    <td>{fmtTime(r.startsAt)}</td>
+                    <td><input defaultValue={r.guestName} onBlur={e=>e.target.value.trim()&&e.target.value!==r.guestName&&updateReservation(r.id,{guestName:e.target.value})}/></td>
+                    <td><input defaultValue={r.guestPhone} onBlur={e=>e.target.value!==r.guestPhone&&updateReservation(r.id,{guestPhone:e.target.value})}/></td>
+                    {menuOptions.map(o=><td key={o.id}>{r.preferences.filter(p=>p===o.id).length||''}</td>)}
+                    <td><input defaultValue={r.notes} onBlur={e=>e.target.value!==r.notes&&updateReservation(r.id,{notes:e.target.value})}/></td>
+                    <td className="row-actions"><button type="button" onClick={()=>setDetailsOpen(detailsOpen===r.id?undefined:r.id)}>פרטים</button><button type="button" onClick={()=>cancelReservation(r.id)}>ביטול</button></td>
+                  </tr>
+                  {detailsOpen===r.id&&<tr><td colSpan={menuOptions.length+5}><div className="row-details">
+                    <label>סועדים<select value={r.partySize} onChange={e=>updateReservation(r.id,{partySize:Number(e.target.value)})}>{Array.from({length:10},(_,i)=><option key={i+1}>{i+1}</option>)}</select></label>
+                    {r.preferences.map((p,i)=><label key={i}>סועד {i+1}<select value={p} onChange={e=>updateReservation(r.id,{preferences:r.preferences.map((pp,idx)=>idx===i?e.target.value:pp)})}><option value="none">ללא העדפה</option>{menuOptions.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>)}
+                  </div></td></tr>}
+                </Fragment>)}
+                <tr className="week-total-row"><td colSpan={3}>סה״כ · {sorted.reduce((s,r)=>s+r.partySize,0)} סועדים</td>{totals.map((t,i)=><td key={i}>{t}</td>)}<td/><td/></tr>
+              </tbody></table></div>:<p className="empty-copy">אין הזמנות ליום זה.</p>}
             </div>;
           })}</div>:<p className="empty-copy">אין ארוחות מתוכננות לשבוע זה.</p>}
         </div>}
