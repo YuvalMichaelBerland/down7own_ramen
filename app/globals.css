@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-:root { --ink:#221f1a; --paper:#f4efe4; --paper-card:#fbf8f1; --red:#b5372a; --line:#ddd4c2; --muted:#8a8170; }
+:root { --ink:#221f1a; --paper:#f4efe4; --paper-card:#fbf8f1; --red:#c02127; --line:#ddd4c2; --muted:#8a8170; }
 * { box-sizing:border-box; }
 html { scroll-behavior:smooth; }
 body { margin:0; color:var(--ink); background-color:var(--paper); background-image:linear-gradient(rgba(244,239,228,.9),rgba(244,239,228,.9)),url('/botanical-pattern.png'); background-size:auto,860px auto; background-attachment:fixed; font-family:var(--font-sans),sans-serif; font-size:14px; }
@@ -51,7 +51,7 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .slot.selected span { color:#c9c1af; }
 .slot:disabled { opacity:.35; cursor:not-allowed; text-decoration:line-through; }
 .reserve { width:100%; border:0; background:var(--red); color:#fff8ee; min-height:54px; margin-top:22px; padding:0 22px; display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:13px; letter-spacing:.03em; cursor:pointer; transition:.15s ease; }
-.reserve:hover { background:#9c2e23; }
+.reserve:hover { background:#9c1a1f; }
 .reserve span { font-size:18px; font-weight:400; }
 .fineprint { text-align:center; color:var(--muted); font-size:11px; margin:12px 0 0; }
 .google-button { display:flex; justify-content:center; min-height:40px; }
