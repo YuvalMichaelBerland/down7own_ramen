@@ -92,9 +92,9 @@ export default function Admin(){
   const weekRangeLabel=`${weekStart.toLocaleDateString('he-IL',{day:'numeric',month:'short'})} – ${weekEnd.toLocaleDateString('he-IL',{day:'numeric',month:'short'})}`;
   function exportWeek(){const csv=buildWeekCsv(weekDays,menuOptions);const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`דוח-שבועי-${weekStart.toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
   return <main className="admin-page">
-    <nav className="nav"><Link className="brand" href="/"><img src="/ramen-logo.png" alt="Down7own Ramen"/><span>DOWN7OWN RAMEN</span></Link><Link className="chef-link" href="/">לתצוגת אורחים</Link></nav>
+    <nav className="nav"><div className="admin-brand-block"><Link className="brand" href="/"><img src="/ramen-logo.png" alt="Down7own Ramen"/><span>DOWN7OWN RAMEN</span></Link><p className="eyebrow"><span/>ניהול מסעדה</p></div><Link className="chef-link" href="/">לתצוגת אורחים</Link></nav>
     <section className="admin-wrap">
-      <div className="admin-heading"><div><p className="eyebrow"><span/>ניהול מסעדה</p><h1>פתיחת זמני הזמנה</h1></div><p>צרו סדרת שעות במהירות, ואז התאימו כל משבצת בנפרד — שעה, משך ישיבה ומספר אורחים.</p></div>
+      <div className="admin-heading"><h1>פתיחת זמני הזמנה</h1></div>
       <div className="admin-column">
         <div className="admin-top-row">
         <div className="admin-card slot-builder">
