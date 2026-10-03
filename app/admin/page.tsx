@@ -8,13 +8,15 @@ import { useSession } from '../lib/useSession';
 type Admin={email:string;added_at:string};
 type PlannedSlot={key:string;startTime:string;durationMinutes:number;capacity:number};
 type MenuOption={id:string;label:string};
-type ReservationRow={id:string;guestName:string;guestEmail:string;guestPhone:string;partySize:number;preferences:string[];notes:string;startsAt:string;menu:MenuOption[]};
+type ReservationRow={id:string;guestName:string;guestEmail:string;guestPhone:string;partySize:number;preferences:string[];notes:string;startsAt:string;arrived:boolean;menu:MenuOption[]};
 type Thread={subject:string;guestName:string;guestEmail:string;lastAt:string;unread:number};
-type SlotInfo={startsAt:string;endsAt:string;capacity:number;reserved:number};
+type SlotInfo={id:string;startsAt:string;endsAt:string;capacity:number;reserved:number;menu:MenuOption[]};
+type SlotEdit={id:string;startTime:string;durationMinutes:number;capacity:number;menuIds:string[]};
 type ServiceDay={dayKey:string;startsAt:string;endsAt:string;capacity:number;reserved:number;slotCount:number;actualAttendees?:number;completedAt?:string;menu:MenuOption[];reservations:ReservationRow[];slots:SlotInfo[]};
 const newSlot=(startTime='19:00',capacity=10,durationMinutes=30):PlannedSlot=>({key:crypto.randomUUID(),startTime,durationMinutes,capacity});
 const fmtDate=(iso:string)=>new Intl.DateTimeFormat('he-IL',{weekday:'short',day:'numeric',month:'short'}).format(new Date(iso));
 const fmtTime=(iso:string)=>new Intl.DateTimeFormat('he-IL',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
+const timeOfDay=(iso:string)=>new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
 const parseDayKey=(k:string)=>{const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d);};
 const startOfWeek=(d:Date)=>{const date=new Date(d);date.setDate(date.getDate()-date.getDay());date.setHours(0,0,0,0);return date;};
 const csvEscape=(v:string)=>`"${String(v).replace(/"/g,'""')}"`;
@@ -65,6 +67,7 @@ export default function Admin(){
   const [weekAutoSet,setWeekAutoSet]=useState(false);
   // Dishes for the day being published; undefined means "all of them" until the chef changes it.
   const [dayMenu,setDayMenu]=useState<string[]>();
+  const [editingSlot,setEditingSlot]=useState<SlotEdit>();
   const activeMenu=(dayMenu??menuOptions.map(o=>o.id)).filter(id=>menuOptions.some(o=>o.id===id));
   function toggleDayMenu(id:string){setDayMenu(activeMenu.includes(id)?activeMenu.filter(x=>x!==id):[...activeMenu,id]);}
   const loadMenuOptions=useCallback(async()=>{const r=await fetch('/api/menu-options');if(r.ok){const d=await r.json() as {options:MenuOption[]};setMenuOptions(d.options||[]);}},[]);
@@ -84,10 +87,12 @@ export default function Admin(){
   async function create(e:React.FormEvent){e.preventDefault();setBusy(true);setMessage('');const timezoneOffset=new Date(`${date}T${slots[0]?.startTime||'00:00'}:00`).getTimezoneOffset();const r=await fetch('/api/admin/slots',{method:'POST',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({date,timezoneOffset,menuOptionIds:activeMenu,slots:slots.map(({startTime,durationMinutes,capacity})=>({startTime,durationMinutes,capacity}))})});const d=await r.json() as {created?:number;error?:string};setMessage(r.ok?`${d.created} משבצות פורסמו להזמנה.`:d.error||'לא הצלחנו לפתוח את המועדים');setBusy(false);if(r.ok)await loadPublished();}
   async function deleteDay(day:ServiceDay){if(!window.confirm(`למחוק את כל זמני ההזמנה של ${fmtDate(day.startsAt)}?`))return;const r=await fetch('/api/admin/slots',{method:'DELETE',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({dayKey:day.dayKey})});const d=await r.json() as {error?:string};setMessage(r.ok?'הארוחה נמחקה.':d.error||'לא הצלחנו למחוק את הארוחה');if(r.ok)await loadPublished();}
   async function deleteHistory(day:ServiceDay){if(!window.confirm(`למחוק לצמיתות את הרשומה ההיסטורית של ${fmtDate(day.startsAt)}? הפעולה אינה הפיכה.`))return;const r=await fetch('/api/admin/slots',{method:'DELETE',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({dayKey:day.dayKey,hard:true})});const d=await r.json() as {error?:string};setMessage(r.ok?'הרשומה נמחקה.':d.error||'לא הצלחנו למחוק את הרשומה');if(r.ok)await loadPublished();}
-  async function completeDay(day:ServiceDay,e:React.FormEvent<HTMLFormElement>){e.preventDefault();const actualAttendees=Number(new FormData(e.currentTarget).get('actualAttendees'));const r=await fetch('/api/admin/slots',{method:'PATCH',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({dayKey:day.dayKey,actualAttendees})});const d=await r.json() as {error?:string};setMessage(r.ok?'הארוחה סומנה כהושלמה.':d.error||'לא הצלחנו לעדכן את הארוחה');if(r.ok)await loadPublished();}
+  function startEditSlot(slot:SlotInfo){setEditingSlot({id:slot.id,startTime:timeOfDay(slot.startsAt),durationMinutes:Math.round((new Date(slot.endsAt).getTime()-new Date(slot.startsAt).getTime())/60000),capacity:slot.capacity,menuIds:slot.menu.map(o=>o.id)});}
+  function toggleEditMenu(id:string){setEditingSlot(current=>current&&{...current,menuIds:current.menuIds.includes(id)?current.menuIds.filter(x=>x!==id):[...current.menuIds,id]});}
+  async function saveSlotEdit(day:ServiceDay,e:React.FormEvent){e.preventDefault();if(!editingSlot)return;if(!editingSlot.menuIds.length){setMessage('בחרו לפחות אפשרות מנה אחת למועד');return;}const r=await fetch('/api/admin/slots',{method:'PATCH',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({slotId:editingSlot.id,timezoneOffset:new Date(`${day.dayKey}T${editingSlot.startTime}:00`).getTimezoneOffset(),startTime:editingSlot.startTime,durationMinutes:editingSlot.durationMinutes,capacity:editingSlot.capacity,menuOptionIds:editingSlot.menuIds})});const d=await r.json() as {error?:string};setMessage(r.ok?'המשבצת עודכנה.':d.error||'לא הצלחנו לעדכן את המשבצת');if(r.ok){setEditingSlot(undefined);await loadPublished();}}
   async function addAdmin(e:React.FormEvent){e.preventDefault();const r=await fetch('/api/admin/admins',{method:'POST',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({email:newAdmin})});const d=await r.json() as {error?:string};if(!r.ok){setMessage(d.error||'לא הצלחנו להוסיף מנהל');return;}setNewAdmin('');setMessage('המנהל נוסף בהצלחה.');await loadAdmins();}
   async function removeAdmin(email:string){const r=await fetch('/api/admin/admins',{method:'DELETE',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({email})});const d=await r.json() as {error?:string};if(!r.ok){setMessage(d.error||'לא הצלחנו להסיר מנהל');return;}await loadAdmins();}
-  async function updateReservation(id:string,patch:Partial<Pick<ReservationRow,'guestName'|'guestEmail'|'guestPhone'|'partySize'|'preferences'|'notes'>>){const r=await fetch('/api/admin/reservations',{method:'PATCH',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({id,...patch})});const d=await r.json() as {error?:string};if(!r.ok){setMessage(d.error||'לא הצלחנו לעדכן את ההזמנה');return;}await loadPublished();}
+  async function updateReservation(id:string,patch:Partial<Pick<ReservationRow,'guestName'|'guestEmail'|'guestPhone'|'partySize'|'preferences'|'notes'|'arrived'>>){const r=await fetch('/api/admin/reservations',{method:'PATCH',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({id,...patch})});const d=await r.json() as {error?:string};if(!r.ok){setMessage(d.error||'לא הצלחנו לעדכן את ההזמנה');return;}setPublished(current=>current.map(day=>({...day,reservations:day.reservations.map(x=>x.id===id?{...x,...patch}:x)})));await loadPublished();}
   async function cancelReservation(id:string){if(!window.confirm('לבטל את ההזמנה הזו?'))return;const r=await fetch('/api/admin/reservations',{method:'DELETE',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({id})});const d=await r.json() as {error?:string};if(!r.ok){setMessage(d.error||'לא הצלחנו לבטל את ההזמנה');return;}await loadPublished();}
   useEffect(()=>{if(weekAutoSet||!published.length)return;const earliest=[...published].sort((a,b)=>a.dayKey.localeCompare(b.dayKey))[0];const diffWeeks=Math.round((startOfWeek(parseDayKey(earliest.dayKey)).getTime()-startOfWeek(new Date()).getTime())/(7*86400000));setWeekOffset(diffWeeks);setWeekAutoSet(true);},[published,weekAutoSet]);
   const weekStart=useMemo(()=>{const s=startOfWeek(new Date());s.setDate(s.getDate()+weekOffset*7);return s;},[weekOffset]);
@@ -128,16 +133,22 @@ export default function Admin(){
                 <span className="week-day-sub">{fmtTime(day.startsAt)}–{fmtTime(day.endsAt)} · {day.reserved}/{day.capacity} מוזמנים{!isOpen&&day.actualAttendees!==undefined?` · הגיעו בפועל: ${day.actualAttendees}`:''}</span>
               </div>
               <div className="week-day-actions">
-                {isOpen?<>
-                  <button type="button" onClick={()=>deleteDay(day)}>מחיקת יום</button>
-                  <form className="complete-day" onSubmit={e=>completeDay(day,e)}><label>הגיעו בפועל<input name="actualAttendees" type="number" min="0" max="1000" defaultValue={day.reserved}/></label><button type="submit">סימון כהושלם</button></form>
-                </>:<button type="button" className="history-delete" onClick={()=>deleteHistory(day)}>מחיקה לצמיתות</button>}
+                {isOpen?<button type="button" onClick={()=>deleteDay(day)}>מחיקת יום</button>:<button type="button" className="history-delete" onClick={()=>deleteHistory(day)}>מחיקה לצמיתות</button>}
               </div>
-              {day.slots.length?<div className="table-scroll"><table className="week-table"><thead><tr><th>שעה</th><th>שם</th><th>טלפון</th>{day.menu.map(o=><th key={o.id}>{o.label}</th>)}<th>הערה</th><th/></tr></thead><tbody>
-                <tr className="week-total-row"><td colSpan={3}>סה״כ · {sorted.reduce((s,r)=>s+r.partySize,0)} סועדים</td>{totals.map((t,i)=><td key={i}>{t}</td>)}<td/><td/></tr>
+              {isOpen&&day.slots.length>0&&<div className="slot-manage">{[...day.slots].sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).map(slot=>editingSlot?.id===slot.id?<form key={slot.id} className="slot-edit" onSubmit={e=>saveSlotEdit(day,e)}>
+                <div className="slot-edit-fields">
+                  <label>שעה<input type="time" required value={editingSlot.startTime} onChange={e=>setEditingSlot({...editingSlot,startTime:e.target.value})}/></label>
+                  <label>משך<select value={editingSlot.durationMinutes} onChange={e=>setEditingSlot({...editingSlot,durationMinutes:Number(e.target.value)})}><option value="30">30 דק׳</option><option value="45">45 דק׳</option><option value="60">שעה</option><option value="90">שעה וחצי</option></select></label>
+                  <label>אורחים<input type="number" min="1" max="100" value={editingSlot.capacity} onChange={e=>setEditingSlot({...editingSlot,capacity:Number(e.target.value)})}/></label>
+                </div>
+                <div className="day-menu-options">{menuOptions.map(o=><button key={o.id} type="button" className="menu-chip" aria-pressed={editingSlot.menuIds.includes(o.id)} onClick={()=>toggleEditMenu(o.id)}>{o.label}</button>)}</div>
+                <div className="slot-edit-actions"><button type="submit">שמירה</button><button type="button" onClick={()=>setEditingSlot(undefined)}>ביטול</button></div>
+              </form>:<div key={slot.id} className="slot-row"><span>{fmtTime(slot.startsAt)}–{fmtTime(slot.endsAt)} · {slot.capacity} מקומות · {slot.reserved} מוזמנים</span><button type="button" onClick={()=>startEditSlot(slot)}>עריכה</button></div>)}</div>}
+              {day.slots.length?<div className="table-scroll"><table className="week-table"><thead><tr><th>שעה</th><th>שם</th><th>טלפון</th>{day.menu.map(o=><th key={o.id}>{o.label}</th>)}<th>הערה</th><th>הגיע</th><th/></tr></thead><tbody>
+                <tr className="week-total-row"><td colSpan={3}>סה״כ · {sorted.reduce((s,r)=>s+r.partySize,0)} סועדים</td>{totals.map((t,i)=><td key={i}>{t}</td>)}<td/><td/><td/></tr>
                 {[...day.slots].sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).map(slot=>{
                   const slotReservations=sorted.filter(r=>r.startsAt===slot.startsAt);
-                  if(!slotReservations.length)return <tr key={slot.startsAt} className="empty-slot-row"><td>{fmtTime(slot.startsAt)}</td><td colSpan={day.menu.length+4} className="empty-copy">פנוי · {slot.capacity} מקומות</td></tr>;
+                  if(!slotReservations.length)return <tr key={slot.startsAt} className="empty-slot-row"><td>{fmtTime(slot.startsAt)}</td><td colSpan={day.menu.length+5} className="empty-copy">פנוי · {slot.capacity} מקומות</td></tr>;
                   return slotReservations.map(r=><Fragment key={r.id}>
                     <tr>
                       <td>{fmtTime(r.startsAt)}</td>
@@ -145,9 +156,10 @@ export default function Admin(){
                       <td><input defaultValue={r.guestPhone} onBlur={e=>e.target.value!==r.guestPhone&&updateReservation(r.id,{guestPhone:e.target.value})}/></td>
                       {day.menu.map(o=><td key={o.id}>{r.preferences.filter(p=>p===o.id).length||''}</td>)}
                       <td><input defaultValue={r.notes} onBlur={e=>e.target.value!==r.notes&&updateReservation(r.id,{notes:e.target.value})}/></td>
+                      <td><input type="checkbox" className="arrived-check" aria-label="הגיע" checked={r.arrived} onChange={e=>updateReservation(r.id,{arrived:e.target.checked})}/></td>
                       <td className="row-actions"><button type="button" onClick={()=>setDetailsOpen(detailsOpen===r.id?undefined:r.id)}>פרטים</button><button type="button" onClick={()=>cancelReservation(r.id)}>ביטול</button></td>
                     </tr>
-                    {detailsOpen===r.id&&<tr><td colSpan={day.menu.length+5}><div className="row-details">
+                    {detailsOpen===r.id&&<tr><td colSpan={day.menu.length+6}><div className="row-details">
                       <label>סועדים<select value={r.partySize} onChange={e=>updateReservation(r.id,{partySize:Number(e.target.value)})}>{Array.from({length:10},(_,i)=><option key={i+1}>{i+1}</option>)}</select></label>
                       {r.preferences.map((p,i)=><label key={i}>סועד {i+1}<select value={p} onChange={e=>updateReservation(r.id,{preferences:r.preferences.map((pp,idx)=>idx===i?e.target.value:pp)})}><option value="none">ללא העדפה</option>{r.menu.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>)}
                     </div></td></tr>}

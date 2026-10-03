@@ -5,7 +5,7 @@ import { savePreferences, validPreference } from '@/app/lib/preferences';
 export async function PATCH(request:Request){
   try{
     if(!await authenticateAdmin(request))return Response.json({error:'גישת מנהל בלבד'},{status:403});
-    const b=await request.json() as {id?:string;guestName?:string;guestEmail?:string;guestPhone?:string;partySize?:number;preferences?:string[];notes?:string};
+    const b=await request.json() as {id?:string;guestName?:string;guestEmail?:string;guestPhone?:string;partySize?:number;preferences?:string[];notes?:string;arrived?:boolean};
     if(!b.id)return Response.json({error:'חסר מזהה הזמנה'},{status:400});
     await ensureSchema();const db=database();
     const reservation=await db.prepare(`SELECT r.id, r.slot_id, r.party_size, s.capacity FROM reservations r JOIN slots s ON s.id = r.slot_id WHERE r.id = ? AND r.status = 'confirmed'`).bind(b.id).first<{id:string;slot_id:string;party_size:number;capacity:number}>();
@@ -24,6 +24,7 @@ export async function PATCH(request:Request){
     if(b.guestPhone!==undefined){if(!/^[0-9+\-() ]{7,20}$/.test(b.guestPhone.trim()))return Response.json({error:'מספר טלפון לא תקין'},{status:400});await db.prepare('UPDATE reservations SET guest_phone = ? WHERE id = ?').bind(b.guestPhone.trim(),b.id).run();}
     if(b.preferences!==undefined)await savePreferences(b.id,b.preferences);
     if(b.notes!==undefined){if(b.notes.length>500)return Response.json({error:'ההערה ארוכה מדי'},{status:400});await db.prepare('UPDATE reservations SET notes = ? WHERE id = ?').bind(b.notes,b.id).run();}
+    if(typeof b.arrived==='boolean')await db.prepare('UPDATE reservations SET arrived = ? WHERE id = ?').bind(b.arrived?1:0,b.id).run();
     return Response.json({updated:true});
   }catch(error){return Response.json({error:error instanceof Error?error.message:'לא הצלחנו לעדכן את ההזמנה'},{status:500});}
 }

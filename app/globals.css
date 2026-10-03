@@ -140,15 +140,21 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .planned-slot button { width:34px; height:34px; border:1px solid var(--line); border-radius:50%; background:transparent; color:var(--red); font-size:19px; cursor:pointer; }
 .add-slot { border:1px dashed var(--line); background:transparent; min-height:44px; cursor:pointer; font-weight:600; font-size:13px; }
 .admins-card { min-height:0; }
-.complete-day { display:grid!important; grid-template-columns:1fr auto; align-items:end; gap:9px!important; padding:12px; background:#efe8d8; }
-.complete-day label { display:grid; grid-template-columns:1fr 78px; align-items:center; }
-.complete-day input { min-height:38px; width:78px; }
-.complete-day button { min-height:38px; border:0; padding:0 14px; background:var(--ink); color:var(--paper); cursor:pointer; font-size:11px; font-weight:600; }
 .day-menu { display:flex; flex-direction:column; gap:10px; }
 .day-menu-label { font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--muted); }
 .day-menu-options { display:flex; flex-wrap:wrap; gap:8px; }
 .menu-chip { min-height:36px; padding:0 14px; border:1px solid var(--line); background:transparent; color:var(--muted); font:inherit; font-size:12px; font-weight:600; cursor:pointer; }
 .menu-chip[aria-pressed="true"] { background:var(--ink); border-color:var(--ink); color:var(--paper); }
+.slot-manage { display:flex; flex-direction:column; gap:6px; margin-top:12px; }
+.slot-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 12px; background:#efe8d8; font-size:12px; }
+.slot-row button { border:0; background:transparent; color:var(--red); cursor:pointer; font-size:11px; font-weight:600; }
+.slot-edit { display:flex; flex-direction:column; gap:12px; padding:14px; background:#efe8d8; }
+.slot-edit-fields { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.slot-edit-fields input,.slot-edit-fields select { width:100%; min-width:0; }
+.slot-edit-actions { display:flex; gap:8px; }
+.slot-edit-actions button { min-height:36px; padding:0 14px; border:1px solid var(--ink); background:var(--ink); color:var(--paper); cursor:pointer; font-size:11px; font-weight:600; }
+.slot-edit-actions button[type="button"] { background:transparent; color:var(--ink); }
+.arrived-check { width:18px!important; height:18px; min-width:0!important; min-height:0!important; padding:0!important; accent-color:var(--red); cursor:pointer; }
 .history-delete { background:transparent!important; color:var(--red)!important; border:1px solid var(--line)!important; min-height:38px; padding:0 14px; cursor:pointer; font-size:11px; font-weight:600; }
 .table-scroll { overflow-x:auto; margin-top:10px; }
 .row-details { display:flex; flex-wrap:wrap; gap:14px; padding:14px 0; align-items:flex-end; }
@@ -173,7 +179,6 @@ h1 { font-family:var(--font-serif),serif; font-weight:500; font-size:clamp(46px,
 .day-status { font-size:9px; font-weight:700; letter-spacing:.06em; color:#6d8f63; border:1px solid #6d8f63; padding:2px 6px; }
 .week-day-actions { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
 .week-day-actions>button { min-height:34px; border:1px solid var(--line); background:transparent; padding:0 12px; cursor:pointer; font-size:11px; font-weight:600; color:var(--red); }
-.week-day-actions .complete-day { flex:1; }
 .week-table { width:100%; min-width:460px; border-collapse:collapse; font-size:11px; }
 .week-table th { text-align:start; color:var(--muted); font-weight:600; padding:0 6px 6px 0; white-space:nowrap; }
 .week-table td { padding:5px 6px 5px 0; border-top:1px solid var(--line); white-space:nowrap; vertical-align:middle; }
@@ -213,8 +218,6 @@ footer { max-width:1040px; margin:auto; border-top:1px solid var(--line); paddin
   .admin-card { padding:24px 20px; }
   .add-admin { grid-template-columns:1fr!important; }
   .confirmation { padding:32px 22px; }
-  .complete-day { grid-template-columns:1fr; }
-  .complete-day button { width:100%; }
   .week-day-actions { flex-direction:column; align-items:stretch; }
   .week-day-block { flex-basis:100%; padding:12px; }
   .week-table { min-width:0; font-size:10px; }

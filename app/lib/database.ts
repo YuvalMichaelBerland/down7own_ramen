@@ -81,6 +81,10 @@ export function ensureSchema() {
     }
     await d.prepare(RESERVATIONS_UNIQUE_INDEX).bind().run();
 
+    // Added after the rebuild above, which would otherwise drop it on very old databases.
+    // A checked-in guest is completed, so the guest's own list stops showing the reservation.
+    try { await d.prepare(`ALTER TABLE reservations ADD COLUMN arrived INTEGER NOT NULL DEFAULT 0`).bind().run(); } catch { /* column already exists */ }
+
     // Migrate any single-preference reservations (older column) into one seat row each,
     // so the per-seat model has a starting point instead of an empty table.
     const unmigrated = await d.prepare(`SELECT id, party_size, preference FROM reservations WHERE id NOT IN (SELECT DISTINCT reservation_id FROM reservation_preferences)`).bind().all<{ id:string; party_size:number; preference:string }>();
