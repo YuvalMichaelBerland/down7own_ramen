@@ -94,7 +94,6 @@ export default function Admin(){
   return <main className="admin-page">
     <nav className="nav"><div className="admin-brand-block"><Link className="brand" href="/"><img src="/ramen-logo.png" alt="Down7own Ramen"/><span>DOWN7OWN RAMEN</span></Link><p className="eyebrow"><span/>ניהול מסעדה</p></div><Link className="chef-link" href="/">לתצוגת אורחים</Link></nav>
     <section className="admin-wrap">
-      <div className="admin-heading"><h1>פתיחת זמני הזמנה</h1></div>
       <div className="admin-column">
         <div className="admin-top-row">
         <div className="admin-card slot-builder">
