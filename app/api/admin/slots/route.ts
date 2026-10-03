@@ -76,34 +76,6 @@ export async function POST(request:Request){
   }catch(error){return Response.json({error:error instanceof Error?error.message:'לא הצלחנו ליצור את המועדים'},{status:500});}
 }
 
-// Edits one open slot's time, length, capacity and dishes. Its day stays the same.
-export async function PATCH(request:Request){
-  try{
-    if(!await authenticateAdmin(request))return Response.json({error:'גישת מנהל בלבד'},{status:403});
-    const b=await request.json() as {slotId?:string;timezoneOffset?:number;startTime?:string;durationMinutes?:number;capacity?:number;menuOptionIds?:string[]};
-    if(!b.slotId||!Number.isInteger(b.timezoneOffset)||!validSlotFields(b))return Response.json({error:'בדקו את השעה, משך הישיבה ומספר המקומות'},{status:400});
-    await ensureSchema();const db=database();
-    const menuIds=await knownMenuIds(b.menuOptionIds);
-    if(!menuIds)return Response.json({error:'בחרו לפחות אפשרות מנה אחת למועד, והיא חייבת להיות קיימת'},{status:400});
-    const slot=await db.prepare('SELECT id, starts_at, ends_at, is_open FROM slots WHERE id = ?').bind(b.slotId).first<{id:string;starts_at:string;ends_at:string;is_open:number}>();
-    if(!slot)return Response.json({error:'המשבצת לא נמצאה'},{status:404});
-    if(!slot.is_open||slot.ends_at<new Date().toISOString())return Response.json({error:'אי אפשר לערוך משבצת סגורה או שכבר הסתיימה'},{status:409});
-    const {startsAt,endsAt}=slotWindow(dayKey(slot.starts_at),b.startTime!,b.durationMinutes!,b.timezoneOffset!);
-    if(new Date(startsAt)<new Date())return Response.json({error:'השעה החדשה צריכה להיות בעתיד'},{status:400});
-    const clash=await db.prepare('SELECT id FROM slots WHERE starts_at = ? AND id != ?').bind(startsAt,b.slotId).first<{id:string}>();
-    if(clash)return Response.json({error:'כבר קיימת משבצת בשעה הזו. בחרו שעה אחרת'},{status:409});
-    const reserved=await db.prepare(`SELECT COALESCE(SUM(party_size), 0) AS sum FROM reservations WHERE slot_id = ? AND status = 'confirmed'`).bind(b.slotId).first<{sum:number}>();
-    if(Number(reserved?.sum||0)>b.capacity!)return Response.json({error:'יש יותר הזמנות ממספר המקומות שהוזן'},{status:409});
-    await db.batch([
-      db.prepare('UPDATE slots SET starts_at = ?, ends_at = ?, capacity = ? WHERE id = ?').bind(startsAt,endsAt,b.capacity,b.slotId),
-      db.prepare('DELETE FROM slot_menu_options WHERE slot_id = ?').bind(b.slotId),
-      db.prepare('INSERT INTO slot_menu_options (slot_id, option_id) SELECT slots.id, json_each.value FROM slots, json_each(?) WHERE slots.id = ?').bind(JSON.stringify(menuIds),b.slotId),
-    ]);
-    await resetStalePreferences();
-    return Response.json({updated:true});
-  }catch(error){return Response.json({error:error instanceof Error?error.message:'לא הצלחנו לעדכן את המשבצת'},{status:500});}
-}
-
 export async function DELETE(request:Request){
   try{
     if(!await authenticateAdmin(request))return Response.json({error:'גישת מנהל בלבד'},{status:403});
