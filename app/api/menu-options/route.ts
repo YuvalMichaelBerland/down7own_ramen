@@ -1,5 +1,6 @@
 import { database, ensureSchema } from '@/app/lib/database';
 import { authenticateAdmin } from '@/app/lib/admin';
+import { resetStalePreferences } from '@/app/lib/preferences';
 
 type MenuOption = { id:string; label:string };
 
@@ -30,8 +31,9 @@ export async function DELETE(request: Request) {
     const { id } = await request.json() as { id?:string };
     if (!id) return Response.json({ error: 'חסר מזהה' }, { status: 400 });
     await ensureSchema(); const db = database();
+    await db.prepare('DELETE FROM slot_menu_options WHERE option_id = ?').bind(id).run();
     await db.prepare('DELETE FROM menu_options WHERE id = ?').bind(id).run();
-    await db.prepare(`UPDATE reservations SET preference = 'none' WHERE preference = ?`).bind(id).run();
+    await resetStalePreferences();
     return Response.json({ deleted: true });
   } catch (error) { return Response.json({ error: error instanceof Error ? error.message : 'לא הצלחנו להסיר אפשרות' }, { status: 500 }); }
 }

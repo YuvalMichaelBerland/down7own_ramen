@@ -4,10 +4,10 @@ import { GoogleSignIn } from './components/GoogleSignIn';
 import { ChatPanel } from './components/ChatPanel';
 import { useSession } from './lib/useSession';
 
-type Slot={id:string;startsAt:string;endsAt:string;capacity:number;remaining:number};
-type Confirmation={id:string;startsAt:string;partySize:number;guestName:string};
 type MenuOption={id:string;label:string};
-type MyReservation={id:string;startsAt:string;endsAt:string;partySize:number;preferences:string[];notes:string;guestName:string;guestPhone:string};
+type Slot={id:string;startsAt:string;endsAt:string;capacity:number;remaining:number;menu:MenuOption[]};
+type Confirmation={id:string;startsAt:string;partySize:number;guestName:string};
+type MyReservation={id:string;startsAt:string;endsAt:string;partySize:number;preferences:string[];notes:string;guestName:string;guestPhone:string;menu:MenuOption[]};
 const fmtDate=(iso:string)=>new Intl.DateTimeFormat('he-IL',{weekday:'long',month:'long',day:'numeric'}).format(new Date(iso));
 const fmtTime=(iso:string)=>new Intl.DateTimeFormat('he-IL',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
 const dateKey=(iso:string)=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(iso)).map(p=>[p.type,p.value]));return `${parts.year}-${parts.month}-${parts.day}`;};
@@ -16,10 +16,8 @@ export default function Home(){
   const { token, signIn, authHeaders, fetchAuthed } = useSession();
   const [slots,setSlots]=useState<Slot[]>([]),[activeDate,setActiveDate]=useState(''),[selected,setSelected]=useState<string>(),[partySize,setPartySize]=useState(1),[preferences,setPreferences]=useState<string[]>(['none']),[notes,setNotes]=useState(''),[guestFirstName,setGuestFirstName]=useState(''),[guestLastName,setGuestLastName]=useState(''),[guestPhone,setGuestPhone]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState(''),[confirmation,setConfirmation]=useState<Confirmation>();
   const [mine,setMine]=useState<MyReservation[]>([]);
-  const [menuOptions,setMenuOptions]=useState<MenuOption[]>([]);
   const [chatVisible,setChatVisible]=useState(false);
   const [unread,setUnread]=useState(false);
-  useEffect(()=>{fetch('/api/menu-options').then(r=>r.json()).then((d:{options:MenuOption[]})=>{const options=d.options||[];setMenuOptions(options);if(options.length)setPreferences(current=>current.every(p=>p==='none')?current.map(()=>options[0].id):current);});},[]);
   const loadMine=useCallback(async()=>{if(!token)return;const r=await fetchAuthed('/api/reservations');if(r.ok){const d=await r.json() as {reservations:MyReservation[]};setMine(d.reservations||[]);}},[token,fetchAuthed]);
   useEffect(()=>{loadMine()},[loadMine]);
   useEffect(()=>{if(!token||chatVisible)return;const check=async()=>{const r=await fetchAuthed('/api/messages/unread');if(r.ok){const d=await r.json() as {unread:boolean};setUnread(d.unread);}};check();const t=setInterval(check,15000);return()=>clearInterval(t);},[token,chatVisible,fetchAuthed]);
@@ -29,12 +27,14 @@ export default function Home(){
   useEffect(()=>{load()},[load]);
   const dates=useMemo(()=>Array.from(new Map(slots.map(s=>[dateKey(s.startsAt),s])).entries()),[slots]);
   const dateSlots=useMemo(()=>slots.filter(s=>dateKey(s.startsAt)===activeDate),[slots,activeDate]);
-  const defaultPreference=menuOptions[0]?.id??'none';
-  useEffect(()=>{setSelected(current=>current&&dateSlots.some(s=>s.id===current)?current:dateSlots.find(s=>s.remaining>0)?.id);setPartySize(1);setPreferences([defaultPreference]);setNotes('');},[activeDate,dateSlots,defaultPreference]);
+  useEffect(()=>{setSelected(current=>current&&dateSlots.some(s=>s.id===current)?current:dateSlots.find(s=>s.remaining>0)?.id);},[dateSlots]);
+  useEffect(()=>{setPartySize(1);setNotes('');},[activeDate]);
   const selectedSlot=useMemo(()=>dateSlots.find(s=>s.id===selected),[dateSlots,selected]);
-  function setPartySizeAndPreferences(n:number){setPartySize(n);setPreferences(current=>current.length>n?current.slice(0,n):[...current,...Array(n-current.length).fill(defaultPreference)]);}
+  // Each slot serves its own dishes, so the seat choices follow the selected slot's menu.
+  const selectedMenu=useMemo(()=>selectedSlot?.menu??[],[selectedSlot]);
+  useEffect(()=>{const ids=selectedMenu.map(o=>o.id);setPreferences(current=>Array.from({length:partySize},(_,i)=>ids.includes(current[i])?current[i]:(ids[0]??'none')));},[selectedMenu,partySize]);
   function setSeatPreference(i:number,value:string){setPreferences(current=>current.map((p,idx)=>idx===i?value:p));}
-  async function reserve(){if(!selected||!token||!selectedSlot)return;setError('');const guestName=`${guestFirstName.trim()} ${guestLastName.trim()}`.trim();const r=await fetchAuthed('/api/reservations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({slotId:selected,partySize,preferences,notes,guestName,guestPhone})});const d=await r.json() as {error?:string;reservation?:Confirmation};if(!r.ok||!d.reservation){setError(d.error||'Could not reserve');await load();return;}setConfirmation(d.reservation);setMine(current=>[...current,{id:d.reservation!.id,startsAt:d.reservation!.startsAt,endsAt:selectedSlot.endsAt,partySize:d.reservation!.partySize,preferences,notes,guestName,guestPhone}].sort((a,b)=>a.startsAt.localeCompare(b.startsAt)));await load();await loadMine();}
+  async function reserve(){if(!selected||!token||!selectedSlot)return;setError('');const guestName=`${guestFirstName.trim()} ${guestLastName.trim()}`.trim();const r=await fetchAuthed('/api/reservations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({slotId:selected,partySize,preferences,notes,guestName,guestPhone})});const d=await r.json() as {error?:string;reservation?:Confirmation};if(!r.ok||!d.reservation){setError(d.error||'Could not reserve');await load();return;}setConfirmation(d.reservation);setMine(current=>[...current,{id:d.reservation!.id,startsAt:d.reservation!.startsAt,endsAt:selectedSlot.endsAt,partySize:d.reservation!.partySize,preferences,notes,guestName,guestPhone,menu:selectedSlot.menu}].sort((a,b)=>a.startsAt.localeCompare(b.startsAt)));setPartySize(1);setNotes('');await load();await loadMine();}
   return <main>
     <nav className="nav"><a className="brand" href="#top"><img src="/ramen-logo.png" alt="Down7own Ramen"/><span>DOWN7OWN RAMEN</span></a>{!token&&<div className="google-button" style={{marginTop:0}}><GoogleSignIn onCredential={signIn}/></div>}</nav>
     {token&&<aside className="mine-panel">
@@ -44,7 +44,7 @@ export default function Home(){
         <div className="mine-actions"><select value={m.partySize} onChange={e=>editMine(m.id,{partySize:Number(e.target.value)})}>{Array.from({length:10},(_,i)=><option key={i+1}>{i+1}</option>)}</select><button type="button" onClick={()=>cancelMine(m.id)}>ביטול</button></div>
         <label className="mine-field">שם מלא<input defaultValue={m.guestName} onBlur={e=>e.target.value.trim()&&e.target.value!==m.guestName&&editMine(m.id,{guestName:e.target.value})}/></label>
         <label className="mine-field">טלפון<input type="tel" defaultValue={m.guestPhone} onBlur={e=>e.target.value.trim()&&e.target.value!==m.guestPhone&&editMine(m.id,{guestPhone:e.target.value})}/></label>
-        <div className="mine-field"><span>העדפות</span>{m.preferences.map((p,i)=><select key={i} value={p} onChange={e=>editMine(m.id,{preferences:m.preferences.map((pp,idx)=>idx===i?e.target.value:pp)})}>{p==='none'&&<option value="none">ללא העדפה</option>}{menuOptions.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select>)}</div>
+        <div className="mine-field"><span>העדפות</span>{m.preferences.map((p,i)=><select key={i} value={p} onChange={e=>editMine(m.id,{preferences:m.preferences.map((pp,idx)=>idx===i?e.target.value:pp)})}>{p==='none'&&<option value="none">ללא העדפה</option>}{m.menu.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select>)}</div>
         <label className="mine-field">הערה לשף<textarea defaultValue={m.notes} onBlur={e=>e.target.value!==m.notes&&editMine(m.id,{notes:e.target.value})}/></label>
       </div>):<p className="empty-copy">אין לכם הזמנות פעילות.</p>}
       <button type="button" className="mine-chat-toggle" onClick={()=>{setChatVisible(v=>!v);setUnread(false);}}>{chatVisible?'סגירת צ׳אט':'יש לכם שאלה? כתבו לשף'}{unread&&!chatVisible&&<span className="badge-dot"/>}</button>
@@ -58,11 +58,11 @@ export default function Home(){
       <div className="slot-panel"><div className="slot-heading"><div><p className="kicker">בחרו שעה</p><h3>{loading?'טוען…':slots.length?'מקומות פנויים':'אין מועדים פתוחים'}</h3></div><span className="live"><i/> בזמן אמת</span></div>
         {dateSlots.length?<div className="slots" role="radiogroup" aria-label="שעת הזמנה">{dateSlots.map(s=><button key={s.id} type="button" role="radio" aria-checked={selected===s.id} disabled={s.remaining===0} className={selected===s.id?'slot selected':'slot'} onClick={()=>setSelected(s.id)}><strong>{fmtTime(s.startsAt)}</strong><span>{s.remaining===0?'מלא':`${s.remaining} מקומות פנויים`}</span></button>)}</div>:<p className="empty-copy">השף עדיין לא פתח מועד חדש להזמנות.</p>}
         {selectedSlot&&<div className="reserve-flow">
-          <label>מספר סועדים <select value={partySize} onChange={e=>setPartySizeAndPreferences(Number(e.target.value))}>{Array.from({length:Math.min(10,selectedSlot.remaining)},(_,i)=><option key={i+1}>{i+1}</option>)}</select></label>
+          <label>מספר סועדים <select value={partySize} onChange={e=>setPartySize(Number(e.target.value))}>{Array.from({length:Math.min(10,selectedSlot.remaining)},(_,i)=><option key={i+1}>{i+1}</option>)}</select></label>
           <label>שם פרטי <input required value={guestFirstName} maxLength={40} onChange={e=>setGuestFirstName(e.target.value)} placeholder="שם פרטי"/><span className="field-hint">שדה חובה</span></label>
           <label>שם משפחה <input required value={guestLastName} maxLength={40} onChange={e=>setGuestLastName(e.target.value)} placeholder="שם משפחה"/><span className="field-hint">שדה חובה</span></label>
           <label>טלפון <input required type="tel" value={guestPhone} maxLength={20} onChange={e=>setGuestPhone(e.target.value)} placeholder="050-1234567"/><span className="field-hint">שדה חובה</span></label>
-          <div className="seat-preferences">{preferences.map((p,i)=><label key={i}>העדפת סועד {i+1} <select value={p} onChange={e=>setSeatPreference(i,e.target.value)}>{menuOptions.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>)}</div>
+          <div className="seat-preferences">{preferences.map((p,i)=><label key={i}>העדפת סועד {i+1} <select value={p} onChange={e=>setSeatPreference(i,e.target.value)}>{selectedMenu.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>)}</div>
           <label>הערה לשף (לא חובה) <textarea value={notes} maxLength={500} onChange={e=>setNotes(e.target.value)} placeholder="אלרגיות, בקשות מיוחדות…"/></label>
           {token?<button className="reserve" type="button" disabled={!guestFirstName.trim()||!guestLastName.trim()||!guestPhone.trim()} onClick={reserve}>אישור הזמנה ל־{fmtTime(selectedSlot.startsAt)}<span>←</span></button>:<p className="fineprint">כדי לאשר את ההזמנה, התחברו עם Google למעלה.</p>}
         </div>}

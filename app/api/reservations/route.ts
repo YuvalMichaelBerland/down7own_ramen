@@ -1,6 +1,7 @@
 import { database, ensureSchema } from '@/app/lib/database';
 import { verifySession } from '@/app/lib/session';
 import { savePreferences, validPreference } from '@/app/lib/preferences';
+import { menusForSlots } from '@/app/lib/menus';
 
 type ReservationRow = { id:string; slot_id:string; party_size:number; status:string; starts_at:string; ends_at:string; notes:string; guest_name:string; guest_phone:string };
 type PreferenceRow = { reservation_id:string; seat_index:number; preference:string };
@@ -22,7 +23,8 @@ export async function GET(request: Request) {
     const prefRows = rows.results.length ? await db.prepare(`SELECT reservation_id, seat_index, preference FROM reservation_preferences WHERE reservation_id IN (${rows.results.map(() => '?').join(',')}) ORDER BY seat_index ASC`).bind(...rows.results.map((r) => r.id)).all<PreferenceRow>() : { results: [] as PreferenceRow[] };
     const prefsByReservation = new Map<string, string[]>();
     for (const p of prefRows.results) { const list = prefsByReservation.get(p.reservation_id) ?? []; list.push(p.preference); prefsByReservation.set(p.reservation_id, list); }
-    return Response.json({ reservations: rows.results.map((r) => ({ id:r.id, startsAt:r.starts_at, endsAt:r.ends_at, partySize:r.party_size, notes:r.notes, guestName:r.guest_name, guestPhone:r.guest_phone, preferences: prefsByReservation.get(r.id) ?? Array(r.party_size).fill('none') })) });
+    const menus = await menusForSlots(rows.results.map((r) => r.slot_id));
+    return Response.json({ reservations: rows.results.map((r) => ({ id:r.id, startsAt:r.starts_at, endsAt:r.ends_at, partySize:r.party_size, notes:r.notes, guestName:r.guest_name, guestPhone:r.guest_phone, menu:menus.get(r.slot_id) ?? [], preferences: prefsByReservation.get(r.id) ?? Array(r.party_size).fill('none') })) });
   } catch (error) { const msg = error instanceof Error ? error.message : 'Could not load reservations'; return Response.json({ error:msg }, { status: 401 }); }
 }
 
@@ -39,9 +41,9 @@ export async function POST(request: Request) {
     const preferences = body.preferences ?? Array(body.partySize).fill('none');
     if (preferences.length !== body.partySize) return Response.json({ error:'מספר ההעדפות חייב להתאים למספר הסועדים' }, { status:400 });
     await ensureSchema(); const db = database();
-    for (const p of preferences) if (!await validPreference(p)) return Response.json({ error:'העדפה לא תקינה' }, { status:400 });
     const slot = await db.prepare('SELECT id, starts_at, ends_at, capacity, is_open FROM slots WHERE id = ?').bind(body.slotId).first<{id:string; starts_at:string; ends_at:string; capacity:number; is_open:number}>();
     if (!slot || !slot.is_open || slot.ends_at < new Date().toISOString()) return Response.json({ error:'This slot is unavailable' }, { status:409 });
+    for (const p of preferences) if (!await validPreference(p, slot.id)) return Response.json({ error:'העדפה לא תקינה' }, { status:400 });
     const id = crypto.randomUUID();
     const guestName = body.guestName!.trim(); const guestPhone = body.guestPhone!.trim();
     try { await db.prepare(`INSERT INTO reservations (id, slot_id, google_subject, guest_name, guest_email, guest_phone, party_size, notes, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', ?)`).bind(id, body.slotId, user.sub, guestName, user.email, guestPhone, body.partySize, notes, new Date().toISOString()).run(); }
@@ -69,7 +71,7 @@ export async function PATCH(request: Request) {
     const targetPartySize = body.partySize ?? reservation.party_size;
     let preferences = body.preferences;
     if (preferences !== undefined && preferences.length !== targetPartySize) return Response.json({ error:'מספר ההעדפות חייב להתאים למספר הסועדים' }, { status:400 });
-    if (preferences !== undefined) for (const p of preferences) if (!await validPreference(p)) return Response.json({ error:'העדפה לא תקינה' }, { status:400 });
+    if (preferences !== undefined) for (const p of preferences) if (!await validPreference(p, reservation.slot_id)) return Response.json({ error:'העדפה לא תקינה' }, { status:400 });
     if (body.partySize !== undefined) {
       const other = await db.prepare(`SELECT COALESCE(SUM(party_size), 0) AS sum FROM reservations WHERE slot_id = ? AND status = 'confirmed' AND id != ?`).bind(reservation.slot_id, body.id).first<{ sum:number }>();
       if (Number(other?.sum || 0) + body.partySize > reservation.capacity) return Response.json({ error:'אין מספיק מקומות פנויים בשעה הזו' }, { status:409 });

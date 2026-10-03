@@ -12,7 +12,7 @@ export async function PATCH(request:Request){
     if(!reservation)return Response.json({error:'ההזמנה לא נמצאה'},{status:404});
     const targetPartySize=b.partySize??reservation.party_size;
     if(b.preferences!==undefined&&b.preferences.length!==targetPartySize)return Response.json({error:'מספר ההעדפות חייב להתאים למספר הסועדים'},{status:400});
-    if(b.preferences!==undefined)for(const p of b.preferences)if(!await validPreference(p))return Response.json({error:'העדפה לא תקינה'},{status:400});
+    if(b.preferences!==undefined)for(const p of b.preferences)if(!await validPreference(p,reservation.slot_id))return Response.json({error:'העדפה לא תקינה'},{status:400});
     if(b.partySize!==undefined){
       if(!Number.isInteger(b.partySize)||b.partySize<1||b.partySize>10)return Response.json({error:'מספר סועדים לא תקין'},{status:400});
       const other=await db.prepare(`SELECT COALESCE(SUM(party_size), 0) AS sum FROM reservations WHERE slot_id = ? AND status = 'confirmed' AND id != ?`).bind(reservation.slot_id,b.id).first<{sum:number}>();

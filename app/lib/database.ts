@@ -40,6 +40,7 @@ let schemaReady: Promise<void> | undefined;
 export function ensureSchema() {
   schemaReady ??= (async () => {
     const d = database();
+    const hadSlotMenus = await d.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'slot_menu_options'`).bind().first();
     await d.batch([
       d.prepare('PRAGMA foreign_keys = ON').bind(),
       d.prepare(`CREATE TABLE IF NOT EXISTS slots (id TEXT PRIMARY KEY, starts_at TEXT NOT NULL UNIQUE, ends_at TEXT NOT NULL, capacity INTEGER NOT NULL CHECK (capacity > 0 AND capacity <= 100), is_open INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL)`).bind(),
@@ -49,10 +50,15 @@ export function ensureSchema() {
       d.prepare(`CREATE TABLE IF NOT EXISTS admins (email TEXT PRIMARY KEY COLLATE NOCASE, added_at TEXT NOT NULL, added_by TEXT NOT NULL)`).bind(),
       d.prepare(`CREATE TABLE IF NOT EXISTS service_days (day_key TEXT PRIMARY KEY, actual_attendees INTEGER NOT NULL CHECK (actual_attendees >= 0), completed_at TEXT NOT NULL, completed_by TEXT NOT NULL)`).bind(),
       d.prepare(`CREATE TABLE IF NOT EXISTS menu_options (id TEXT PRIMARY KEY, label TEXT NOT NULL UNIQUE, sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)`).bind(),
+      // The dish library (menu_options) is what the chef can pick from; each published slot
+      // stores the dishes it actually serves, so different days can offer different menus.
+      d.prepare(`CREATE TABLE IF NOT EXISTS slot_menu_options (slot_id TEXT NOT NULL REFERENCES slots(id) ON DELETE CASCADE, option_id TEXT NOT NULL REFERENCES menu_options(id) ON DELETE CASCADE, PRIMARY KEY (slot_id, option_id))`).bind(),
       d.prepare(OVERBOOKING_TRIGGER).bind(),
       d.prepare(`INSERT OR IGNORE INTO menu_options (id, label, sort_order, created_at) VALUES ('chicken', 'עוף', 1, ?)`).bind(new Date().toISOString()),
       d.prepare(`INSERT OR IGNORE INTO menu_options (id, label, sort_order, created_at) VALUES ('vegetarian', 'צמחוני', 2, ?)`).bind(new Date().toISOString()),
     ]);
+    // Slots published before per-slot menus existed keep serving the full list they had.
+    if (!hadSlotMenus) await d.prepare(`INSERT OR IGNORE INTO slot_menu_options (slot_id, option_id) SELECT s.id, m.id FROM slots s CROSS JOIN menu_options m`).bind().run();
     for (const alter of [
       `ALTER TABLE reservations ADD COLUMN preference TEXT NOT NULL DEFAULT 'none'`,
       `ALTER TABLE reservations ADD COLUMN notes TEXT NOT NULL DEFAULT ''`,
