@@ -17,28 +17,47 @@ const fmtDate=(iso:string)=>new Intl.DateTimeFormat('he-IL',{weekday:'short',day
 const fmtTime=(iso:string)=>new Intl.DateTimeFormat('he-IL',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
 const parseDayKey=(k:string)=>{const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d);};
 const startOfWeek=(d:Date)=>{const date=new Date(d);date.setDate(date.getDate()-date.getDay());date.setHours(0,0,0,0);return date;};
-const csvEscape=(v:string)=>`"${String(v).replace(/"/g,'""')}"`;
-function buildWeekCsv(days:ServiceDay[]){
-  const lines:string[]=[];
+const weekLabelOf=(start:number)=>{const s=new Date(start);const e=new Date(start);e.setDate(e.getDate()+6);return `${s.toLocaleDateString('he-IL',{day:'numeric',month:'short'})} – ${e.toLocaleDateString('he-IL',{day:'numeric',month:'short'})}`;};
+// One worksheet per day, laid out like the weekly table: merged slot cells and a totals row.
+async function buildWeekWorkbook(days:ServiceDay[]){
+  const ExcelJS=(await import('exceljs')).default;
+  const workbook=new ExcelJS.Workbook();
+  const thin={style:'thin' as const,color:{argb:'FFDDD4C2'}};
+  const border={top:thin,left:thin,bottom:thin,right:thin};
+  const solid=(argb:string)=>({type:'pattern' as const,pattern:'solid' as const,fgColor:{argb}});
   for(const day of [...days].sort((a,b)=>a.dayKey.localeCompare(b.dayKey))){
     const menu=day.menu;
-    lines.push(csvEscape(fmtDate(day.startsAt)));
-    lines.push(['שעה','שם מלא','טלפון',...menu.map(o=>o.label),'הערה'].map(csvEscape).join(','));
+    const sheet=workbook.addWorksheet(fmtDate(day.startsAt).slice(0,31));
+    sheet.views=[{rightToLeft:true}];
+    const headers=['שעה','שם המזמין','טלפון',...menu.map(o=>o.label),'הערות','אישור הגעה','סה״כ למועד'];
+    const totalCol=headers.length;
+    sheet.addRow(headers);
     const sorted=[...day.reservations].sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
     const totals=menu.map(()=>0);
     for(const slot of [...day.slots].sort((a,b)=>a.startsAt.localeCompare(b.startsAt))){
       const slotReservations=sorted.filter(r=>r.startsAt===slot.startsAt);
-      if(!slotReservations.length){lines.push([fmtTime(slot.startsAt),'','',...menu.map(()=>''),`פנוי (${slot.capacity})`].map(csvEscape).join(','));continue;}
+      if(!slotReservations.length){sheet.addRow([fmtTime(slot.startsAt),`פנוי · ${slot.capacity} מקומות`]);continue;}
+      const first=sheet.rowCount+1;
+      let slotTotal=0;
       for(const r of slotReservations){
         const counts=menu.map(o=>r.preferences.filter(p=>p===o.id).length);
         counts.forEach((c,i)=>{totals[i]+=c;});
-        lines.push([fmtTime(r.startsAt),r.guestName,r.guestPhone,...counts.map(String),r.notes||''].map(csvEscape).join(','));
+        slotTotal+=r.partySize;
+        sheet.addRow([fmtTime(r.startsAt),r.guestName,r.guestPhone,...counts.map(c=>c||''),r.notes||'',r.arrived?'✓':'']);
       }
+      const last=sheet.rowCount;
+      sheet.getCell(first,totalCol).value=slotTotal;
+      if(last>first){sheet.mergeCells(first,1,last,1);sheet.mergeCells(first,totalCol,last,totalCol);}
     }
-    lines.push(['','סה״כ',String(sorted.reduce((s,r)=>s+r.partySize,0)),...totals.map(String),''].map(csvEscape).join(','));
-    lines.push('');
+    const footer=sheet.addRow([`סה״כ · ${sorted.reduce((sum,r)=>sum+r.partySize,0)} סועדים`,'','',...totals]);
+    sheet.mergeCells(footer.number,1,footer.number,3);
+    for(let c=1;c<=totalCol;c++){sheet.getCell(1,c).fill=solid('FFEFE8D8');sheet.getCell(footer.number,c).fill=solid('FFEFE8D8');}
+    sheet.getRow(1).font={bold:true};
+    sheet.getRow(footer.number).font={bold:true};
+    headers.forEach((_,i)=>{sheet.getColumn(i+1).width=i===1?20:i===2?14:i===totalCol-3?24:11;});
+    for(let r=1;r<=sheet.rowCount;r++)for(let c=1;c<=totalCol;c++){const cell=sheet.getCell(r,c);cell.border=border;cell.alignment={horizontal:'center',vertical:'middle',wrapText:true};}
   }
-  return '﻿'+lines.join('\r\n');
+  return workbook;
 }
 
 export default function Admin(){
@@ -94,7 +113,13 @@ export default function Admin(){
   const weekDays=useMemo(()=>{const weekStartTime=weekStart.getTime();return [...published,...history].filter(d=>startOfWeek(parseDayKey(d.dayKey)).getTime()===weekStartTime).sort((a,b)=>a.dayKey.localeCompare(b.dayKey));},[published,history,weekStart]);
   const weekEnd=useMemo(()=>{const e=new Date(weekStart);e.setDate(e.getDate()+6);return e;},[weekStart]);
   const weekRangeLabel=`${weekStart.toLocaleDateString('he-IL',{day:'numeric',month:'short'})} – ${weekEnd.toLocaleDateString('he-IL',{day:'numeric',month:'short'})}`;
-  function exportWeek(){const csv=buildWeekCsv(weekDays);const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`דוח-שבועי-${weekStart.toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
+  const [exportWeeks,setExportWeeks]=useState<number[]>();
+  const selectedExportWeeks=exportWeeks??[weekStart.getTime()];
+  const availableWeeks=useMemo(()=>[...new Set([...published,...history].map(d=>startOfWeek(parseDayKey(d.dayKey)).getTime()))].sort((a,b)=>a-b),[published,history]);
+  const exportDays=useMemo(()=>[...published,...history].filter(d=>selectedExportWeeks.includes(startOfWeek(parseDayKey(d.dayKey)).getTime())),[published,history,selectedExportWeeks]);
+  function toggleExportWeek(t:number){setExportWeeks(current=>{const base=current??[weekStart.getTime()];return base.includes(t)?base.filter(x=>x!==t):[...base,t];});}
+  async function exportWeek(){const workbook=await buildWeekWorkbook(exportDays);const buffer=await workbook.xlsx.writeBuffer();const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`דוח-שבועי-${new Date().toISOString().slice(0,10)}.xlsx`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
+
   return <main className="admin-page">
     <nav className="nav"><div className="admin-brand-block"><div className="brand"><img src="/ramen-logo.png" alt="Down7own Ramen"/><span>DOWN7OWN RAMEN</span></div><p className="eyebrow"><span/>ניהול מסעדה</p></div><Link className="chef-link" href="/">לתצוגת אורחים</Link></nav>
     <section className="admin-wrap">
@@ -115,8 +140,9 @@ export default function Admin(){
         {authorized&&<div className="admin-card week-card">
           <div className="week-header">
             <div><p className="kicker">דוח שבועי</p><h2>תצוגת שבוע</h2></div>
-            <button type="button" className="export-button" onClick={exportWeek} disabled={!weekDays.length}>ייצוא לאקסל</button>
+            <button type="button" className="export-button" onClick={exportWeek} disabled={!exportDays.length}>ייצוא לאקסל (Google Sheets)</button>
           </div>
+          <div className="export-weeks"><span className="day-menu-label">שבועות לייצוא</span><div className="day-menu-options">{availableWeeks.map(t=><button key={t} type="button" className="menu-chip" aria-pressed={selectedExportWeeks.includes(t)} onClick={()=>toggleExportWeek(t)}>{weekLabelOf(t)}</button>)}</div></div>
           <div className="week-nav"><button type="button" onClick={()=>setWeekOffset(w=>w-1)}>‹ קודם</button><span>{weekRangeLabel}</span><button type="button" onClick={()=>setWeekOffset(w=>w+1)}>הבא ›</button>{weekOffset!==0&&<button type="button" onClick={()=>setWeekOffset(0)}>השבוע</button>}</div>
           {weekDays.length?<div className="week-days">{weekDays.map(day=>{
             const sorted=[...day.reservations].sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
